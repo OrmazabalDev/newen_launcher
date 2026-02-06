@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Newen Launcher</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #0b0f14;
+        font-family: "Space Grotesk", "Urbanist", "Inter", system-ui, sans-serif;
+        color: #f8fafc;
+      }
+      .wrap {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+      }
+      .card {
+        width: 260px;
+        height: 140px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 60%),
+          linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .logo {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f97316, #fb923c);
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+      }
+      .text {
+        font-size: 12px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+      .loader {
+        width: 52px;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        position: relative;
+      }
+      .loader::after {
+        content: "";
+        position: absolute;
+        left: -40%;
+        top: 0;
+        width: 40%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, #f97316, transparent);
+        animation: slide 0.8s linear infinite;
+      }
+      @keyframes slide {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(280%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="logo">N</div>
+        <div class="text">Inicializando...</div>
+        <div class="loader"></div>
+      </div>
+    </div>
+  </body>
+</html>

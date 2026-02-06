@@ -1,0 +1,33 @@
+node_modules/
+dist/
+.npm-cache/
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Tauri / Rust
+src-tauri/target/
+**/*.rs.bk
+
+# Build artifacts
+*.log
+*.tmp

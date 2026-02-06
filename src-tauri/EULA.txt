@@ -1,0 +1,15 @@
+TÉRMINOS Y CONDICIONES DE USO – NEWEN LAUNCHER (VERSIÓN BETA)
+
+1. VERSIÓN BETA: Newen Launcher se encuentra en fase beta. Esto significa que la aplicación puede contener errores, fallos de funcionamiento o características incompletas. El usuario acepta que el uso de esta versión es bajo su propio riesgo.
+
+2. PROPÓSITO: Newen Launcher es un software de escritorio diseñado para gestionar, autenticar y lanzar instancias del juego Minecraft, facilitando la administración de versiones, skins y mods.
+
+3. LIMITACIÓN DE RESPONSABILIDAD: Los desarrolladores de Newen Launcher no se hacen responsables por daños directos, indirectos, incidentales o consecuentes que puedan surgir del uso o la imposibilidad de uso de la aplicación.
+
+4. ACTUALIZACIONES Y CAMBIOS: La aplicación puede recibir actualizaciones automáticas o manuales que modifiquen su funcionamiento, características o interfaz, sin previo aviso.
+
+5. PRIVACIDAD Y SEGURIDAD: Newen Launcher puede requerir autenticación y almacenar información sensible de manera segura, pero no se recomienda almacenar datos críticos en esta versión beta.
+
+6. PROPIEDAD INTELECTUAL: Newen Launcher y sus componentes son propiedad de sus desarrolladores. Minecraft es una marca registrada de Mojang Studios y Microsoft; este software no está afiliado ni respaldado por ellos.
+
+7. ACEPTACIÓN: Al instalar o utilizar Newen Launcher, el usuario acepta estos términos y condiciones.

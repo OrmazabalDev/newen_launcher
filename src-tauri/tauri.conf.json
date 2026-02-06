@@ -1,0 +1,45 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Newen Launcher",
+  "version": "1.0.0",
+  "identifier": "com.newen.launcher",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Newen Launcher",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 1200,
+        "minHeight": 800,
+        "center": true,
+        "visible": false,
+        "resizable": false,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' tauri: asset:; img-src 'self' asset: tauri: data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-eval'; connect-src 'self' tauri: asset: http://localhost:5173 ws://localhost:5173; object-src 'none'; base-uri 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "Newen",
+    "shortDescription": "Newen Launcher - Atacama",
+    "icon": [
+      "icons/32x32.png",
+      "icons/64x64.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ]
+  
+  }
+  
+}
