@@ -14,6 +14,7 @@ import { Sidebar } from "./components/Sidebar";
 import { JavaModal } from "./components/JavaModal";
 import { GlobalProgress } from "./components/GlobalProgress";
 import { ConfirmModal } from "./components/ConfirmModal";
+import { UpdateModal } from "./components/UpdateModal";
 
 import { LoginView } from "./views/LoginView";
 import { DashboardView } from "./views/DashboardView";
@@ -26,6 +27,9 @@ import { SettingsView } from "./views/SettingsView";
 import { useTauriProgress } from "./hooks/useTauriProgress";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { check } from "@tauri-apps/plugin-updater";
+import type { Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import * as tauri from "./services/tauri";
 import { loadSession, saveSession } from "./store/sessionStore";
 
@@ -98,6 +102,9 @@ export default function App() {
     danger?: boolean;
     resolve: (value: boolean) => void;
   } | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<Update | null>(null);
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const [updateError, setUpdateError] = useState("");
 
   // Java
   const [systemJava, setSystemJava] = useState<SystemJava | null>(null);
@@ -175,6 +182,26 @@ export default function App() {
     []
   );
 
+  const checkForUpdates = useCallback(
+    async (silent = true) => {
+      if (import.meta.env.DEV) return;
+      try {
+        const update = await check();
+        if (update) {
+          setUpdateInfo(update);
+          setUpdateError("");
+        } else if (!silent) {
+          showToast("No hay actualizaciones disponibles.", "info");
+        }
+      } catch (err) {
+        if (!silent) {
+          showToast("No se pudo buscar actualizaciones.", "error");
+        }
+      }
+    },
+    [showToast]
+  );
+
   const resolveConfirm = useCallback(
     (value: boolean) => {
       if (confirmState) {
@@ -215,6 +242,24 @@ export default function App() {
       // ignore storage issues
     }
   };
+
+  const handleUpdateNow = useCallback(async () => {
+    if (!updateInfo) return;
+    setUpdateBusy(true);
+    setUpdateError("");
+    try {
+      await updateInfo.downloadAndInstall();
+      await relaunch();
+    } catch (err) {
+      setUpdateError("No se pudo instalar la actualización. Intenta más tarde.");
+      setUpdateBusy(false);
+    }
+  }, [updateInfo]);
+
+  const handleUpdateLater = useCallback(() => {
+    setUpdateInfo(null);
+    setUpdateError("");
+  }, []);
 
   const prefetchCatalog = useCallback(async (loaders: string[]) => {
     const loaderSet = new Set(loaders.filter((l) => l === "forge" || l === "neoforge" || l === "fabric"));
@@ -328,6 +373,13 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closeSplash, prefetchCatalog]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void checkForUpdates(true);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [checkForUpdates]);
 
   useEffect(() => {
     if (!userProfile) return;
@@ -719,18 +771,34 @@ export default function App() {
   };
 
   // ----- RENDER -----
+  const updateModal = (
+    <UpdateModal
+      open={Boolean(updateInfo)}
+      version={updateInfo?.version ?? ""}
+      notes={updateInfo?.body ?? ""}
+      date={updateInfo?.date ?? ""}
+      isDownloading={updateBusy}
+      error={updateError}
+      onUpdate={handleUpdateNow}
+      onLater={handleUpdateLater}
+    />
+  );
+
   if (!userProfile) {
     return (
-      <LoginView
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        offlineUsername={offlineUsername}
-        setOfflineUsername={setOfflineUsername}
-        onLoginOffline={loginOffline}
-        onLoginMicrosoft={loginMicrosoft}
-        authError={authError}
-        setAuthError={setAuthError}
-      />
+      <>
+        <LoginView
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          offlineUsername={offlineUsername}
+          setOfflineUsername={setOfflineUsername}
+          onLoginOffline={loginOffline}
+          onLoginMicrosoft={loginMicrosoft}
+          authError={authError}
+          setAuthError={setAuthError}
+        />
+        {updateModal}
+      </>
     );
   }
 
@@ -874,6 +942,7 @@ export default function App() {
           onConfirm={() => resolveConfirm(true)}
           onCancel={() => resolveConfirm(false)}
         />
+        {updateModal}
 
       </div>
     </div>
