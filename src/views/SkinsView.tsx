@@ -16,6 +16,7 @@ export function SkinsView({
   const [model, setModel] = useState<SkinModel>("steve");
   const [skinUrl, setSkinUrl] = useState("");
   const [status, setStatus] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
   const [capeUrl, setCapeUrl] = useState("");
   const [officialCape, setOfficialCape] = useState<string | null>(null);
   const [offlineCape, setOfflineCape] = useState<string | null>(null);
@@ -89,6 +90,7 @@ export function SkinsView({
   }, [offline, capeUrls, officialCape]);
 
   const handleFile = async (file: File) => {
+    setIsBusy(true);
     try {
       setStatus("Cargando skin...");
       const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -102,11 +104,14 @@ export function SkinsView({
       setStatus("Skin aplicada.");
     } catch (e: any) {
       setStatus("Error guardando skin: " + String(e));
+    } finally {
+      setIsBusy(false);
     }
   };
 
   const handleUrl = async () => {
     if (!skinUrl.trim()) return;
+    setIsBusy(true);
     try {
       setStatus("Descargando skin...");
       const saved = await tauri.setActiveSkinUrl(skinUrl.trim(), "Skin URL", model);
@@ -114,10 +119,13 @@ export function SkinsView({
       setStatus("Skin aplicada.");
     } catch (e: any) {
       setStatus("Error con la URL: " + String(e));
+    } finally {
+      setIsBusy(false);
     }
   };
 
   const handleCapeFile = async (file: File) => {
+    setIsBusy(true);
     try {
       setStatus("Cargando cape...");
       const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -131,11 +139,14 @@ export function SkinsView({
       setStatus("Cape aplicada.");
     } catch (e: any) {
       setStatus("Error guardando cape: " + String(e));
+    } finally {
+      setIsBusy(false);
     }
   };
 
   const handleCapeUrl = async () => {
     if (!capeUrl.trim()) return;
+    setIsBusy(true);
     try {
       setStatus("Descargando cape...");
       const saved = await tauri.setActiveCapeUrl(capeUrl.trim());
@@ -143,31 +154,39 @@ export function SkinsView({
       setStatus("Cape aplicada.");
     } catch (e: any) {
       setStatus("Error con la URL: " + String(e));
+    } finally {
+      setIsBusy(false);
     }
   };
 
   const handleClearCape = async () => {
+    setIsBusy(true);
     try {
       await tauri.clearActiveCape();
       setOfflineCape(null);
       setStatus("Cape eliminada.");
     } catch (e: any) {
       setStatus("No se pudo eliminar la cape.");
+    } finally {
+      setIsBusy(false);
     }
   };
 
   const handleClear = async () => {
+    setIsBusy(true);
     try {
       await tauri.clearActiveSkin();
       setSkin(null);
       setStatus("Skin eliminada.");
     } catch (e: any) {
       setStatus("No se pudo eliminar la skin.");
+    } finally {
+      setIsBusy(false);
     }
   };
 
   return (
-    <div className="absolute inset-0 z-20 bg-gray-950 flex flex-col p-8 overflow-y-auto animate-fadeIn">
+    <div className="absolute inset-0 z-20 bg-gray-950 flex flex-col p-8 overflow-y-auto animate-fadeIn" aria-busy={isBusy}>
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white">Skins</h2>
         <p className="text-gray-300 text-sm">
@@ -235,6 +254,8 @@ export function SkinsView({
                 <input
                   type="file"
                   accept="image/png"
+                  disabled={isBusy}
+                  aria-disabled={isBusy}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
@@ -251,6 +272,8 @@ export function SkinsView({
                 <input
                   type="file"
                   accept="image/png"
+                  disabled={isBusy}
+                  aria-disabled={isBusy}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
@@ -270,12 +293,16 @@ export function SkinsView({
                     value={skinUrl}
                     onChange={(e) => setSkinUrl(e.target.value)}
                     placeholder="https://..."
+                    disabled={isBusy}
+                    aria-disabled={isBusy}
                     className="flex-1 bg-gray-950 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-accent"
                   />
                   <button
                     type="button"
                     onClick={handleUrl}
-                    className="px-4 py-3 rounded-xl bg-brand-info text-white font-bold"
+                    disabled={isBusy || !skinUrl.trim()}
+                    aria-disabled={isBusy || !skinUrl.trim()}
+                    className="px-4 py-3 rounded-xl bg-brand-info text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Aplicar
                   </button>
@@ -290,12 +317,16 @@ export function SkinsView({
                     value={capeUrl}
                     onChange={(e) => setCapeUrl(e.target.value)}
                     placeholder="https://..."
+                    disabled={isBusy}
+                    aria-disabled={isBusy}
                     className="flex-1 bg-gray-950 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-accent"
                   />
                   <button
                     type="button"
                     onClick={handleCapeUrl}
-                    className="px-4 py-3 rounded-xl bg-brand-info text-white font-bold"
+                    disabled={isBusy || !capeUrl.trim()}
+                    aria-disabled={isBusy || !capeUrl.trim()}
+                    className="px-4 py-3 rounded-xl bg-brand-info text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Aplicar
                   </button>
@@ -308,20 +339,28 @@ export function SkinsView({
                   <button
                     type="button"
                     onClick={handleClear}
-                    className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold"
+                    disabled={isBusy}
+                    aria-disabled={isBusy}
+                    className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Quitar skin
                   </button>
                   <button
                     type="button"
                     onClick={handleClearCape}
-                    className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold"
+                    disabled={isBusy}
+                    aria-disabled={isBusy}
+                    className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Quitar cape
                   </button>
                 </div>
                 {status && (
-                  <div className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
+                  <div
+                    className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2"
+                    role="status"
+                    aria-live="polite"
+                  >
                     {status}
                   </div>
                 )}
@@ -356,8 +395,9 @@ export function SkinsView({
                 <button
                   type="button"
                   onClick={() => onRefreshOnline?.()}
-                  disabled={!onRefreshOnline}
-                  className="px-4 py-2 rounded-xl bg-brand-accent hover:bg-brand-accent-deep text-white font-bold"
+                  disabled={!onRefreshOnline || isBusy}
+                  aria-disabled={!onRefreshOnline || isBusy}
+                  className="px-4 py-2 rounded-xl bg-brand-accent hover:bg-brand-accent-deep text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Actualizar skin/cape
                 </button>

@@ -83,6 +83,8 @@ export function ManagerView({
                           : "bg-brand-accent hover:bg-brand-accent-deep text-white shadow-lg"
                       }`}
                       disabled={isInstalled}
+                      aria-disabled={isInstalled}
+                      title={isInstalled ? "Versión instalada" : `Instalar Vanilla ${v.id}`}
                       aria-label={isInstalled ? "Versión instalada" : `Instalar Vanilla ${v.id}`}
                     >
                       <IconDownload /> {isInstalled ? "Instalada" : "Vanilla"}
@@ -92,6 +94,7 @@ export function ManagerView({
                       onClick={() => onInstallForge(v.id, isSnapshot)}
                       type="button"
                       disabled={isSnapshot}
+                      aria-disabled={isSnapshot}
                       className={`px-4 py-2 rounded-lg font-bold text-sm border ${
                         isSnapshot
                           ? "border-gray-800 text-gray-700 cursor-not-allowed"
@@ -107,6 +110,7 @@ export function ManagerView({
                       onClick={() => onInstallNeoForge(v.id, isSnapshot)}
                       type="button"
                       disabled={isSnapshot}
+                      aria-disabled={isSnapshot}
                       className={`px-4 py-2 rounded-lg font-bold text-sm border ${
                         isSnapshot
                           ? "border-gray-800 text-gray-700 cursor-not-allowed"
@@ -122,6 +126,7 @@ export function ManagerView({
                       onClick={() => onInstallFabric(v.id, isSnapshot)}
                       type="button"
                       disabled={isSnapshot}
+                      aria-disabled={isSnapshot}
                       className={`px-4 py-2 rounded-lg font-bold text-sm border ${
                         isSnapshot
                           ? "border-gray-800 text-gray-700 cursor-not-allowed"

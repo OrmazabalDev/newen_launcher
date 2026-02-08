@@ -42,6 +42,8 @@ export function SettingsView({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [cacheStatus, setCacheStatus] = useState("");
   const [reportStatus, setReportStatus] = useState("");
+  const [isClearingCache, setIsClearingCache] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const currentPreset = findPreset(settings.resolution.width, settings.resolution.height);
 
@@ -69,21 +71,27 @@ export function SettingsView({
 
   const handleClearCache = async () => {
     setCacheStatus("Limpiando cache...");
+    setIsClearingCache(true);
     try {
       const msg = await tauri.clearCache();
       setCacheStatus(msg);
     } catch (e: any) {
       setCacheStatus("Error limpiando cache: " + String(e));
+    } finally {
+      setIsClearingCache(false);
     }
   };
 
   const handleGenerateReport = async () => {
     setReportStatus("Generando reporte...");
+    setIsGeneratingReport(true);
     try {
       const path = await tauri.generateDiagnosticReport();
       setReportStatus(`Reporte generado: ${path}`);
     } catch (e: any) {
       setReportStatus("Error generando reporte: " + String(e));
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
@@ -287,9 +295,12 @@ export function SettingsView({
             <button
               type="button"
               onClick={handleClearCache}
-              className="px-4 py-2 rounded-xl bg-brand-info hover:bg-brand-info/90 text-white font-bold"
+              disabled={isClearingCache}
+              aria-disabled={isClearingCache}
+              title={isClearingCache ? "Limpiando cache..." : "Limpiar cache"}
+              className="px-4 py-2 rounded-xl bg-brand-info hover:bg-brand-info/90 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Limpiar cache
+              {isClearingCache ? "Limpiando..." : "Limpiar cache"}
             </button>
             {cacheStatus && (
               <div className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
@@ -306,9 +317,12 @@ export function SettingsView({
             <button
               type="button"
               onClick={handleGenerateReport}
-              className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold"
+              disabled={isGeneratingReport}
+              aria-disabled={isGeneratingReport}
+              title={isGeneratingReport ? "Generando reporte..." : "Generar reporte"}
+              className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Generar reporte
+              {isGeneratingReport ? "Generando..." : "Generar reporte"}
             </button>
             {reportStatus && (
               <div className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">

@@ -25,6 +25,7 @@ export function LoginView({
   const [msStatus, setMsStatus] = useState<string>("");
   const pollingRef = useRef<number | null>(null);
   const isPollingRef = useRef(false);
+  const [isPolling, setIsPolling] = useState(false);
 
   const stopPolling = () => {
     if (pollingRef.current) {
@@ -32,6 +33,7 @@ export function LoginView({
       pollingRef.current = null;
     }
     isPollingRef.current = false;
+    setIsPolling(false);
   };
 
   useEffect(() => {
@@ -64,7 +66,8 @@ export function LoginView({
   const startMicrosoftLogin = async () => {
     try {
       setAuthError("");
-      setMsStatus("Generando c\u00f3digo de inicio...");
+      setMsStatus("Generando código de inicio...");
+      setIsPolling(true);
       const device = await tauri.startMsLogin();
       setDeviceInfo(device);
       setAuthMode("microsoft");
@@ -95,12 +98,13 @@ export function LoginView({
       }
     } catch (err: any) {
       setMsStatus("");
+      setIsPolling(false);
       setAuthError(String(err));
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6 relative overflow-hidden" aria-busy={isPolling}>
       <div className="w-full max-w-md bg-gray-900/80 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-gray-800 z-10">
         <h1 className="text-4xl font-black text-center mb-8 text-white">
           NEWEN <span className="text-brand-accent">LAUNCHER</span>
@@ -110,18 +114,20 @@ export function LoginView({
           <button
             type="button"
             onClick={startMicrosoftLogin}
+            disabled={isPolling}
             className={`flex-1 py-2 rounded-md text-sm ${
               authMode === "microsoft" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"
-            }`}
+            } ${isPolling ? "opacity-60 cursor-not-allowed" : ""}`}
           >
-            Microsoft
+            {isPolling ? "Conectando..." : "Microsoft"}
           </button>
           <button
             onClick={() => setAuthMode("offline")}
             type="button"
+            disabled={isPolling}
             className={`flex-1 py-2 rounded-md text-sm ${
               authMode === "offline" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"
-            }`}
+            } ${isPolling ? "opacity-60 cursor-not-allowed" : ""}`}
           >
             Offline
           </button>
@@ -146,7 +152,11 @@ export function LoginView({
               >
                 Copiar c\u00f3digo
               </button>
-              {msStatus && <div className="text-xs text-gray-400">{msStatus}</div>}
+              {msStatus && (
+                <div className="text-xs text-gray-400" role="status" aria-live="polite">
+                  {msStatus}
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -165,7 +175,7 @@ export function LoginView({
               </p>
               <button
                 onClick={onLoginOffline}
-                disabled={!offlineUsername.trim()}
+                disabled={!offlineUsername.trim() || isPolling}
                 type="button"
                 className="w-full py-3.5 bg-brand-accent hover:bg-brand-accent-deep rounded-xl font-bold text-white transition disabled:opacity-60 disabled:cursor-not-allowed"
               >

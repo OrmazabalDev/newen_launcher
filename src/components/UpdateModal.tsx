@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useRef } from "react";
+import { useModalFocus } from "../hooks/useModalFocus";
 
 type UpdateModalProps = {
   open: boolean;
@@ -29,7 +30,13 @@ export function UpdateModal({
   onLater,
 }: UpdateModalProps) {
   if (!open) return null;
+
   const prettyDate = formatDate(date);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const updateRef = useRef<HTMLButtonElement | null>(null);
+  const summaryId = "update-modal-summary";
+
+  useModalFocus({ open, containerRef: dialogRef, initialFocusRef: updateRef, onClose: onLater });
 
   return (
     <div
@@ -37,12 +44,17 @@ export function UpdateModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="update-modal-title"
+      aria-describedby={summaryId}
     >
-      <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-700 max-w-lg w-full">
+      <div
+        ref={dialogRef}
+        className="bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-700 max-w-lg w-full"
+        tabIndex={-1}
+      >
         <h3 className="text-xl font-bold text-white mb-2" id="update-modal-title">
           Actualización disponible
         </h3>
-        <div className="text-sm text-gray-300 space-y-2">
+        <div className="text-sm text-gray-300 space-y-2" id={summaryId}>
           <div>
             Versión nueva: <span className="text-white font-semibold">{version}</span>
           </div>
@@ -59,7 +71,8 @@ export function UpdateModal({
             onClick={onUpdate}
             type="button"
             disabled={isDownloading}
-            className={`w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 ${
+            ref={updateRef}
+            className={`w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition active:scale-[0.98] ${
               isDownloading ? "bg-brand-accent/60 cursor-not-allowed" : "bg-brand-accent hover:bg-brand-accent-deep"
             }`}
           >
@@ -72,7 +85,7 @@ export function UpdateModal({
             onClick={onLater}
             type="button"
             disabled={isDownloading}
-            className="w-full py-3 bg-gray-800 rounded-xl text-gray-300 disabled:opacity-60"
+            className="w-full py-3 bg-gray-800 rounded-xl text-gray-300 disabled:opacity-60 transition hover:bg-gray-700"
           >
             Actualizar más tarde
           </button>

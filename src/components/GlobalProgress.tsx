@@ -18,8 +18,8 @@ export function GlobalProgress({
   const label = status.trim() ? status : "Procesando...";
 
   return (
-    <div className="fixed top-0 left-64 right-0 z-50">
-      <div className="bg-gray-950/90 border-b border-gray-800 px-4 py-2 flex items-center gap-3">
+    <div className="fixed top-0 left-0 lg:left-64 right-0 z-50">
+      <div className="bg-gray-950/90 border-b border-gray-800 px-4 py-2 flex items-center gap-3" role="status" aria-live="polite">
         <div className="text-xs text-gray-300 truncate">{label}</div>
         <div className="ml-auto text-xs text-gray-400">{value}%</div>
       </div>

@@ -32,6 +32,11 @@ export function Sidebar({
             Newen <span className="text-brand-accent">Launcher</span>
           </span>
         </div>
+        {isGameRunning && (
+          <div className="mb-4 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
+            Juego en ejecución. Algunas acciones pueden tardar en responder.
+          </div>
+        )}
 
         <div className="space-y-1">
           <button

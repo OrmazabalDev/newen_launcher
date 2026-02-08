@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { GameSettings, InstanceSummary, RuntimeMetrics, SystemJava } from "../types";
 import { IconChevronDown, IconJava } from "../icons";
+import { Cpu, Edit3, HardDrive, Play } from "lucide-react";
 import * as tauri from "../services/tauri";
 
 export function DashboardView({
@@ -37,9 +38,9 @@ export function DashboardView({
   const isError = statusLower.startsWith("error");
   const isSuccess = statusLower.startsWith("listo");
   const [metrics, setMetrics] = useState<RuntimeMetrics | null>(null);
-  const [uiFps, setUiFps] = useState(0);
   const [smoothedLauncherCpu, setSmoothedLauncherCpu] = useState<number | null>(null);
   const [smoothedGameCpu, setSmoothedGameCpu] = useState<number | null>(null);
+  const [isInstanceMenuOpen, setIsInstanceMenuOpen] = useState(false);
   const loaderLabel = selectedInstance
     ? selectedInstance.loader === "fabric"
       ? "Fabric"
@@ -65,7 +66,6 @@ export function DashboardView({
   })();
 
   useEffect(() => {
-    if (!settings.performanceOverlay) return;
     let alive = true;
     const tick = async () => {
       try {
@@ -81,14 +81,8 @@ export function DashboardView({
       alive = false;
       window.clearInterval(id);
     };
-  }, [settings.performanceOverlay, gamePid]);
+  }, [gamePid]);
 
-  useEffect(() => {
-    if (!settings.performanceOverlay) {
-      setSmoothedLauncherCpu(null);
-      setSmoothedGameCpu(null);
-    }
-  }, [settings.performanceOverlay]);
 
   useEffect(() => {
     setSmoothedGameCpu(null);
@@ -98,31 +92,15 @@ export function DashboardView({
     if (!metrics) return;
     const smooth = (prev: number | null, next: number, alpha = 0.2) =>
       prev === null ? next : prev * (1 - alpha) + next * alpha;
-    if (metrics.launcher_cpu_percent !== null && metrics.launcher_cpu_percent !== undefined) {
-      setSmoothedLauncherCpu((prev) => smooth(prev, metrics.launcher_cpu_percent));
+    const launcherCpu = metrics.launcher_cpu_percent;
+    if (typeof launcherCpu === "number") {
+      setSmoothedLauncherCpu((prev) => smooth(prev, launcherCpu));
     }
-    if (metrics.process_cpu_percent !== null && metrics.process_cpu_percent !== undefined) {
-      setSmoothedGameCpu((prev) => smooth(prev, metrics.process_cpu_percent));
+    const processCpu = metrics.process_cpu_percent;
+    if (typeof processCpu === "number") {
+      setSmoothedGameCpu((prev) => smooth(prev, processCpu));
     }
   }, [metrics]);
-
-  useEffect(() => {
-    if (!settings.performanceOverlay) return;
-    let frames = 0;
-    let last = performance.now();
-    let raf = 0;
-    const loop = (time: number) => {
-      frames += 1;
-      if (time - last >= 1000) {
-        setUiFps(Math.round((frames * 1000) / (time - last)));
-        frames = 0;
-        last = time;
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [settings.performanceOverlay]);
 
   const formatMemory = (mb: number | null | undefined) => {
     if (mb === null || mb === undefined) return "--";
@@ -138,224 +116,274 @@ export function DashboardView({
     gamePid && smoothedGameCpu !== null && smoothedGameCpu !== undefined
       ? smoothedGameCpu
       : smoothedLauncherCpu;
+  const cpuText = cpuDisplay !== null && cpuDisplay !== undefined ? `${cpuDisplay.toFixed(1)}%` : "--";
+  const ramDisplay = formatMemory(gameUsed ?? launcherUsed ?? null);
+  const instanceInitial = selectedInstance?.name?.charAt(0).toUpperCase() || "?";
+  const loaderDotClass = selectedInstance
+    ? selectedInstance.loader === "fabric"
+      ? "bg-emerald-400"
+      : selectedInstance.loader === "forge"
+        ? "bg-blue-400"
+        : selectedInstance.loader === "neoforge"
+          ? "bg-orange-400"
+          : selectedInstance.loader === "snapshot"
+            ? "bg-purple-400"
+            : "bg-gray-400"
+    : "bg-gray-600";
+  const canSelectInstance = instances.length > 0 && !isProcessing;
+  const instanceMenuRef = React.useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isInstanceMenuOpen) return;
+    const onClickOutside = (event: MouseEvent) => {
+      if (!instanceMenuRef.current) return;
+      if (!instanceMenuRef.current.contains(event.target as Node)) {
+        setIsInstanceMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsInstanceMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isInstanceMenuOpen]);
 
   return (
     <>
       <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-[#0f0f13]" />
         <img
           src="/hero-bg.svg"
-          className="w-full h-full object-cover opacity-50"
+          className="w-full h-full object-cover opacity-35"
           alt=""
           aria-hidden="true"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/80 to-transparent" />
+        <div className="absolute top-0 right-0 w-3/4 h-3/4 bg-brand-accent/10 blur-[140px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-950/40 via-gray-950/70 to-gray-950" />
       </div>
 
+      <header className="relative z-10 flex justify-end p-6">
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex gap-4 bg-black/40 backdrop-blur-md border border-white/5 px-4 py-2 rounded-full text-xs font-mono text-gray-300">
+            <div className="flex items-center gap-2">
+              <Cpu size={14} className="text-brand-accent" />
+              <span className="hidden md:inline">CPU: {cpuText}</span>
+              <span className="md:hidden">CPU {cpuText}</span>
+            </div>
+            <div className="w-px h-4 bg-white/10" />
+            <div className="flex items-center gap-2">
+              <HardDrive size={14} className="text-blue-400" />
+              <span className="hidden md:inline">RAM: {ramDisplay}</span>
+              <span className="md:hidden">RAM {ramDisplay}</span>
+            </div>
+          </div>
+          <div className="text-[11px] text-gray-400 bg-black/30 border border-white/5 rounded-full px-3 py-1 font-mono">
+            Launcher reservada: {formatMemory(launcherReserved)}
+          </div>
+        </div>
+      </header>
+
       <div
-        className="relative z-10 flex-1 flex flex-col justify-end p-12 max-w-6xl mx-auto w-full"
+        className="relative z-10 flex-1 flex flex-col justify-center px-12 lg:px-20 pb-16"
         aria-busy={isProcessing}
       >
-        <div className="mb-10">
-          <div className="text-xs uppercase tracking-[0.25em] text-gray-500 font-bold">Instancia activa</div>
-          <h1 className="text-5xl font-black text-white mt-2 drop-shadow-2xl">
-            {hasInstance ? selectedInstance?.name : "Sin instancia"}
-          </h1>
-          <div className="mt-3 flex flex-wrap gap-2 text-sm text-gray-300">
-            <span className="px-2.5 py-1 rounded-full bg-gray-900/70 border border-gray-800">
-              {loaderLabel}
+        <div className="space-y-4 mb-10">
+          <div className="flex items-center gap-3">
+            <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider border bg-blue-500/10 text-blue-300 border-blue-500/20">
+              {loaderLabel} {selectedInstance?.version || "N/A"}
             </span>
-            <span className="px-2.5 py-1 rounded-full bg-gray-900/70 border border-gray-800">
-              {selectedInstance?.version || "N/A"}
-            </span>
-            <span className="px-2.5 py-1 rounded-full bg-gray-900/70 border border-gray-800">
+            <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider border bg-purple-500/10 text-purple-300 border-purple-500/20">
               {modsLabel}
             </span>
           </div>
-          <p className="text-gray-400 text-sm mt-4 max-w-2xl">
-            Newen gestiona tu experiencia. Minecraft queda en segundo plano.
+
+          <h1 className="text-6xl font-black text-white tracking-tight drop-shadow-2xl max-w-3xl leading-tight">
+            {hasInstance ? selectedInstance?.name : "Sin instancia"}
+          </h1>
+          <p className="text-gray-400 max-w-lg text-lg">
+            Tu aventura está lista. Newen gestiona los recursos en segundo plano para una experiencia fluida.
           </p>
+
+          {!hasInstance && (
+            <div className="text-sm text-gray-200 bg-white/5 border border-white/10 rounded-xl px-4 py-3 max-w-2xl">
+              Crea tu primera instancia para empezar. Puedes elegir Vanilla, Forge, NeoForge o Fabric.
+            </div>
+          )}
         </div>
 
-        <div className="bg-gray-900/70 backdrop-blur border border-gray-800 rounded-2xl p-6 shadow-xl w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-gray-950/40 border border-gray-800 rounded-2xl p-5">
-              <div className="text-xs uppercase tracking-widest text-gray-500 font-bold">Instancia</div>
-              <div className="mt-2 text-2xl font-black text-white">
-                {hasInstance ? selectedInstance?.name : "Sin instancia"}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2 text-sm text-gray-300">
-                <span className="px-2.5 py-1 rounded-full bg-gray-900/70 border border-gray-800">{loaderLabel}</span>
-                <span className="px-2.5 py-1 rounded-full bg-gray-900/70 border border-gray-800">
-                  {selectedInstance?.version || "N/A"}
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-gray-900/70 border border-gray-800">
-                  {modsLabel}
-                </span>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <div className="relative flex-1 min-w-[220px]">
-                  <select
-                    id="instance-select"
-                    className="w-full appearance-none bg-gray-900/80 backdrop-blur border border-gray-700 text-white py-3 px-4 pr-10 rounded-xl font-medium focus:ring-2 focus:ring-brand-accent outline-none cursor-pointer hover:bg-gray-800 transition"
-                    value={selectedInstanceId}
-                    onChange={(e) => onSelectInstance(e.target.value)}
-                    disabled={isProcessing || instances.length === 0}
-                    aria-label="Instancia"
-                  >
-                    {instances.length === 0 && <option value="">Sin instancias</option>}
-                    {instances.map((inst) => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
-                    <IconChevronDown />
-                  </div>
-                </div>
-                <button
-                  onClick={onGoInstances}
-                  type="button"
-                  className="px-4 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold"
-                >
-                  Editar
-                </button>
-              </div>
-
-              {!hasInstance && (
-                <button
-                  onClick={onGoInstances}
-                  type="button"
-                  className="mt-4 px-4 py-2 rounded-xl bg-brand-accent hover:bg-brand-accent-deep text-white font-bold"
-                >
-                  Crear instancia
-                </button>
-              )}
-            </div>
-
-            <div className="bg-gray-950/40 border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-widest text-gray-500 font-bold">Estado</div>
-                <div className="mt-3 flex items-center gap-3">
-                  <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black ${
-                      isProcessing
-                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                        : isError
-                          ? "bg-red-600/20 text-red-300 border border-red-600/40"
-                          : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                    }`}
-                  >
-                    {isProcessing ? "..." : isError ? "!" : "OK"}
-                  </div>
-                  <div>
-                    <div className="text-xl font-black text-white">
-                      {isProcessing ? "Procesando" : isError ? "Atención" : "Listo"}
-                    </div>
-                    <div className="text-gray-300 text-sm">
-                      {hasInstance
-                        ? `Instancia: ${selectedInstance?.name} - ${selectedInstance?.version}`
-                        : "Crea una instancia para empezar."}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-col gap-3">
-                {hasInstance ? (
-                  <button
-                    onClick={onPlay}
-                    disabled={isProcessing}
-                    type="button"
-                    className={`w-full h-[64px] rounded-xl font-black text-2xl tracking-widest shadow-xl transition-all flex items-center justify-center gap-3 overflow-hidden relative ${
-                      isProcessing
-                        ? "bg-gray-800 cursor-wait text-gray-300 border border-gray-700"
-                        : "bg-brand-accent hover:bg-brand-accent-deep text-white hover:shadow-brand-accent/30 active:scale-[0.98]"
-                    }`}
-                  >
-                    {isProcessing && (
-                      <div className="absolute inset-0">
-                        <div
-                          className="h-full bg-white/15"
-                          style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-                        />
-                      </div>
-                    )}
-                    <span className="relative z-10">{launchLabel}</span>
-                  </button>
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-8 mt-2">
+          {hasInstance ? (
+            <button
+              onClick={onPlay}
+              disabled={isProcessing}
+              type="button"
+              aria-disabled={isProcessing}
+              title={isProcessing ? "Procesando, espera un momento." : "Iniciar juego"}
+              className={`group relative px-10 py-6 rounded-2xl flex items-center gap-5 shadow-2xl transition-all duration-300 transform min-w-[280px] ${
+                isProcessing
+                  ? "bg-gray-800 cursor-wait scale-95"
+                  : "bg-gradient-to-r from-brand-accent to-orange-500 hover:from-orange-500 hover:to-orange-400 hover:scale-105 hover:shadow-brand-accent/40 active:scale-95"
+              }`}
+            >
+              <div className={`p-3 bg-white/20 rounded-xl backdrop-blur-sm transition-transform ${!isProcessing ? "group-hover:rotate-12" : ""}`}>
+                {isProcessing ? (
+                  <div className="w-7 h-7 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <button
-                    onClick={onGoInstances}
-                    type="button"
-                    className="w-full h-[64px] rounded-xl font-bold text-xl tracking-wide bg-brand-accent hover:bg-brand-accent-deep text-white shadow-xl transition-all"
-                  >
-                    CREAR UNA INSTANCIA
-                  </button>
-                )}
-
-                {isProcessing && statusText && (
-                  <div className="text-sm mt-1 px-3 py-2 rounded-lg border text-gray-200 border-gray-700 bg-gray-900/70">
-                    {statusText}
-                  </div>
-                )}
-
-                {!isProcessing && statusText && (
-                  <div className="mt-1 space-y-2">
-                    <div
-                      className={`text-sm px-3 py-2 rounded-lg border ${
-                        isError
-                          ? "text-red-200 border-red-800 bg-red-950/50"
-                          : isSuccess
-                            ? "text-brand-accent border-brand-accent/40 bg-brand-accent/10"
-                            : "text-gray-200 border-gray-700 bg-gray-900/70"
-                      }`}
-                      role="status"
-                      aria-live="polite"
-                    >
-                      {statusText}
-                    </div>
-                    {isError && hasInstance && (
-                      <button
-                        type="button"
-                        onClick={onRepairInstance}
-                        className="px-3 py-2 rounded-lg bg-gray-800 text-gray-200 hover:bg-gray-700 text-sm"
-                      >
-                        Reparar instancia
-                      </button>
-                    )}
-                  </div>
+                  <Play size={28} fill="currentColor" />
                 )}
               </div>
+              <div className="text-left">
+                <p className="text-xs font-bold uppercase tracking-wider text-orange-100 opacity-80 mb-0.5">
+                  {isProcessing ? "Inicializando..." : "Estado: Listo"}
+                </p>
+                <p className="text-3xl font-black text-white leading-none">{launchLabel}</p>
+              </div>
+            </button>
+          ) : (
+            <button
+              onClick={onGoInstances}
+              type="button"
+              className="px-10 py-6 rounded-2xl bg-gradient-to-r from-brand-accent to-orange-500 text-white font-black text-2xl shadow-2xl hover:from-orange-500 hover:to-orange-400 transition-all"
+            >
+              CREAR INSTANCIA
+            </button>
+          )}
+
+          <div className="h-16 w-px bg-white/10 mx-2 hidden md:block" />
+
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-gray-500 font-bold uppercase tracking-widest pl-1">Instancia activa</span>
+            <div className="relative group" ref={instanceMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!canSelectInstance) return;
+                  setIsInstanceMenuOpen((prev) => !prev);
+                }}
+                disabled={!canSelectInstance}
+                aria-haspopup="listbox"
+                aria-expanded={isInstanceMenuOpen}
+                className={`flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 backdrop-blur-md pr-10 pl-3 py-3 rounded-xl transition-all min-w-[260px] text-left ${
+                  canSelectInstance ? "" : "opacity-60 cursor-not-allowed"
+                }`}
+              >
+                <div className="w-12 h-12 rounded-lg bg-[#25252b] flex items-center justify-center overflow-hidden border border-white/10 shadow-inner p-1">
+                  {selectedInstance?.thumbnail ? (
+                    <img src={selectedInstance.thumbnail} alt={selectedInstance.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-black text-gray-300">{instanceInitial}</span>
+                  )}
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-bold text-base text-gray-200 truncate max-w-[160px]">
+                    {hasInstance ? selectedInstance?.name : "Sin instancia"}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`w-2 h-2 rounded-full ${loaderDotClass}`}></span>
+                    <p className="text-xs text-gray-400">{loaderLabel} {selectedInstance?.version || "N/A"}</p>
+                  </div>
+                </div>
+                <IconChevronDown />
+              </button>
+
+              {isInstanceMenuOpen && (
+                <div
+                  role="listbox"
+                  className="absolute mt-2 w-full min-w-[260px] bg-[#141419] border border-white/10 rounded-xl shadow-2xl z-20 overflow-hidden"
+                >
+                  <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                    {instances.map((inst) => (
+                      <button
+                        key={inst.id}
+                        role="option"
+                        aria-selected={inst.id === selectedInstanceId}
+                        type="button"
+                        onClick={() => {
+                          onSelectInstance(inst.id);
+                          setIsInstanceMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                          inst.id === selectedInstanceId ? "bg-white/5 text-white" : "text-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-[#25252b] flex items-center justify-center overflow-hidden border border-white/10 p-1">
+                            {inst.thumbnail ? (
+                              <img src={inst.thumbnail} alt={inst.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs font-black text-gray-300">{inst.name.slice(0, 1).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold truncate">{inst.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {inst.loader} • {inst.version}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={onGoInstances}
+                className="absolute -right-3 -top-3 w-8 h-8 bg-[#1e1e24] border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:border-brand-accent hover:bg-brand-accent/10 transition-all opacity-0 group-hover:opacity-100 shadow-lg scale-90 group-hover:scale-100"
+                title="Editar instancia"
+              >
+                <Edit3 size={14} />
+              </button>
             </div>
           </div>
         </div>
+
+        {isProcessing && statusText && (
+          <div className="text-sm mt-6 px-4 py-3 rounded-xl border text-gray-200 border-white/10 bg-white/5">
+            {statusText}
+          </div>
+        )}
+
+        {!isProcessing && statusText && (
+          <div className="mt-6 space-y-2">
+            <div
+              className={`text-sm px-4 py-3 rounded-xl border ${
+                isError
+                  ? "text-red-200 border-red-800 bg-red-950/50"
+                  : isSuccess
+                    ? "text-brand-accent border-brand-accent/40 bg-brand-accent/10"
+                    : "text-gray-200 border-white/10 bg-white/5"
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              {statusText}
+            </div>
+            {isError && hasInstance && (
+              <button
+                type="button"
+                onClick={onRepairInstance}
+                className="px-4 py-2 rounded-xl bg-white/5 text-gray-200 hover:bg-white/10 text-sm"
+              >
+                Reparar instancia
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="absolute bottom-8 left-12 text-xs text-gray-400 flex items-center gap-2">
         <IconJava /> {systemJava?.valid ? `Java sistema: ${systemJava.version}` : "Java: auto (portable)"}
       </div>
 
-      {settings.performanceOverlay && (
-        <div className="absolute top-10 right-10 z-20 bg-gray-950/90 border border-gray-800 rounded-2xl px-4 py-3 text-[11px] text-gray-200 shadow-xl font-mono">
-          <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Rendimiento</div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <div>FPS: {settings.maxFps === 0 ? "Sin límite" : settings.maxFps}</div>
-            <div>UI: {uiFps}</div>
-            <div>CPU: {cpuDisplay !== null && cpuDisplay !== undefined ? `${cpuDisplay.toFixed(1)}%` : "--"}</div>
-            <div>RAM launcher: {formatMemory(launcherUsed)}</div>
-          </div>
-          <div className="mt-3 pt-2 border-t border-gray-800 text-gray-400 space-y-1">
-            {gamePid && (
-              <div>
-                Juego: usada {formatMemory(gameUsed)} / reservada {formatMemory(gameReserved)}
-              </div>
-            )}
-            <div>Launcher: reservada {formatMemory(launcherReserved)}</div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
