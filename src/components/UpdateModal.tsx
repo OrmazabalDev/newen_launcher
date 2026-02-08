@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useId, useRef } from "react";
 import { useModalFocus } from "../hooks/useModalFocus";
 
 type UpdateModalProps = {
@@ -29,21 +29,22 @@ export function UpdateModal({
   onUpdate,
   onLater,
 }: UpdateModalProps) {
-  if (!open) return null;
-
   const prettyDate = formatDate(date);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const updateRef = useRef<HTMLButtonElement | null>(null);
-  const summaryId = "update-modal-summary";
+  const titleId = useId();
+  const summaryId = useId();
 
   useModalFocus({ open, containerRef: dialogRef, initialFocusRef: updateRef, onClose: onLater });
+
+  if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-950/90 backdrop-blur-sm animate-fadeIn p-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="update-modal-title"
+      aria-labelledby={titleId}
       aria-describedby={summaryId}
     >
       <div
@@ -51,7 +52,7 @@ export function UpdateModal({
         className="bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-700 max-w-lg w-full"
         tabIndex={-1}
       >
-        <h3 className="text-xl font-bold text-white mb-2" id="update-modal-title">
+        <h3 className="text-xl font-bold text-white mb-2" id={titleId}>
           Actualización disponible
         </h3>
         <div className="text-sm text-gray-300 space-y-2" id={summaryId}>

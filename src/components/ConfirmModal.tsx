@@ -1,5 +1,16 @@
-import React, { useRef } from "react";
+import React, { useId, useRef } from "react";
 import { useModalFocus } from "../hooks/useModalFocus";
+
+type ConfirmModalProps = {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
 
 export function ConfirmModal({
   open,
@@ -10,29 +21,22 @@ export function ConfirmModal({
   danger = false,
   onConfirm,
   onCancel,
-}: {
-  open: boolean;
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  danger?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  if (!open) return null;
+}: ConfirmModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
-  const messageId = "confirm-modal-message";
+  const titleId = useId();
+  const messageId = useId();
 
   useModalFocus({ open, containerRef: dialogRef, initialFocusRef: confirmRef, onClose: onCancel });
+
+  if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-950/90 backdrop-blur-sm animate-fadeIn p-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="confirm-modal-title"
+      aria-labelledby={titleId}
       aria-describedby={messageId}
     >
       <div
@@ -40,7 +44,7 @@ export function ConfirmModal({
         className="bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-700 max-w-sm w-full text-center"
         tabIndex={-1}
       >
-        <h3 className="text-xl font-bold text-white mb-2" id="confirm-modal-title">
+        <h3 className="text-xl font-bold text-white mb-2" id={titleId}>
           {title}
         </h3>
         <p className="text-sm text-gray-300" id={messageId}>

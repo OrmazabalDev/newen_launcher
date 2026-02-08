@@ -8,7 +8,7 @@ import {
   CatalogProjectTabs,
   CatalogResultsGrid,
   CatalogToolbar,
-} from "./catalog/components";
+} from "./catalog/components/index";
 import type { CatalogViewProps } from "./catalog/types";
 import { useCatalogState } from "./catalog/useCatalogState";
 

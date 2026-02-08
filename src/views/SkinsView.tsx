@@ -66,7 +66,11 @@ export function SkinsView({
       if (skin?.data_url) {
         viewerRef.current.loadSkin(skin.data_url);
       }
-      viewerRef.current.loadCape(offlineCape ?? null);
+      if (offlineCape) {
+        viewerRef.current.loadCape(offlineCape);
+      } else {
+        viewerRef.current.loadCape(null);
+      }
     } else {
       if (officialSkinUrl) {
         viewerRef.current.loadSkin(officialSkinUrl);

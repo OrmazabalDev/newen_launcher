@@ -559,10 +559,6 @@ export function useCatalogState({
 
   const handleInstall = async (versionId: string) => {
     if (installingVersionId) return;
-    if (projectType !== "modpack" && !selectedInstance) {
-      setStatus("Selecciona una instancia Forge, NeoForge o Fabric para instalar mods.");
-      return;
-    }
     if (projectType === "datapack") {
       setStatus("Los Data Packs requieren elegir un mundo. Próximamente.");
       return;
@@ -622,13 +618,22 @@ export function useCatalogState({
       }
       return;
     }
-    const verb = projectType === "mod" || projectType === "modpack" ? "Instalando" : "Descargando";
+    const instance = selectedInstance;
+    if (!instance) {
+      setStatus(
+        projectType === "mod"
+          ? "Selecciona una instancia Forge, NeoForge o Fabric para instalar mods."
+          : "Selecciona una instancia para instalar contenido."
+      );
+      return;
+    }
+    const verb = projectType === "mod" ? "Instalando" : "Descargando";
     setInstallingVersionId(versionId);
     setLoading(true);
     setStatus(`${verb} ${String(projectTypeLabel).toLowerCase()}...`);
     try {
       const msg = await tauri.modrinthInstallVersion(
-        selectedInstance.id,
+        instance.id,
         versionId,
         loader,
         gameVersionFilter,
@@ -636,12 +641,12 @@ export function useCatalogState({
       );
       setStatus(msg);
       await refreshInstalledItems();
-      if (selectedInstance && contentKind) {
+      if (contentKind) {
         showToast({
           message: "Instalación completada.",
           kind: "success",
           actionLabel: "Abrir carpeta",
-          action: { type: "open-content", instanceId: selectedInstance.id, kind: contentKind },
+          action: { type: "open-content", instanceId: instance.id, kind: contentKind },
         });
       } else {
         showToast({ message: "Instalación completada.", kind: "success" });
