@@ -6,6 +6,7 @@ type PersistedSession = {
   selectedInstanceId: string;
   showSnapshots: boolean;
   gameSettings: GameSettings;
+  uiScale: number;
   forgeProfilesByVersion: Record<string, string>;
 };
 
@@ -26,6 +27,7 @@ const DEFAULTS: PersistedSession = {
     focusMode: false,
     performanceOverlay: true,
   },
+  uiScale: 1,
   forgeProfilesByVersion: {},
 };
 

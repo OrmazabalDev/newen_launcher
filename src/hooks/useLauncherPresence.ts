@@ -6,7 +6,12 @@ import { useCallback, useRef } from "react";
  */
 export interface DiscordPresenceApi {
   discordInit: () => Promise<void>;
-  discordSetActivity: (state: string, details: string, startTimestamp: number) => Promise<void>;
+  discordSetActivity: (
+    state: string,
+    details: string,
+    startTimestamp: number | undefined,
+    showButtons: boolean
+  ) => Promise<void>;
   discordClearActivity: () => Promise<void>;
 }
 
@@ -28,7 +33,7 @@ export function useLauncherPresence(api: DiscordPresenceApi): {
           discordReadyRef.current = true;
         }
         const startTimestamp = Math.floor(Date.now() / 1000);
-        await api.discordSetActivity(state, "Newen Launcher", startTimestamp);
+        await api.discordSetActivity(state, "Launcher de Minecraft / Version 1.0 Atacama", startTimestamp, true);
       } catch {
         // Errores de Discord no deben romper el launcher.
       }

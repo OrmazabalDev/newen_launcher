@@ -58,6 +58,13 @@ export async function generateDiagnosticReport(): Promise<string> {
   return await invoke("generate_diagnostic_report");
 }
 
+export async function uploadDiagnosticReport(
+  reportPath?: string,
+  instanceId?: string
+): Promise<string> {
+  return await invoke("upload_diagnostic_report", { reportPath, instanceId });
+}
+
 export async function launchGame(
   versionId: string,
   settings: GameSettings,
@@ -169,9 +176,10 @@ export async function discordInit(): Promise<void> {
 export async function discordSetActivity(
   state: string,
   details: string,
-  startTimestamp?: number
+  startTimestamp: number | undefined,
+  showButtons: boolean
 ): Promise<void> {
-  await invoke("discord_set_activity", { state, details, startTimestamp });
+  await invoke("discord_set_activity", { state, details, startTimestamp, showButtons });
 }
 
 export async function discordClearActivity(): Promise<void> {
@@ -248,6 +256,14 @@ export async function modrinthInstallModpackWithBackup(
   });
 }
 
+export async function modrinthInstallDatapack(
+  instanceId: string,
+  worldId: string,
+  versionId: string
+): Promise<string> {
+  return await invoke("modrinth_install_datapack", { instanceId, worldId, versionId });
+}
+
 export async function applyOptimizationPack(
   instanceId: string,
   loader: string,
@@ -280,6 +296,23 @@ export async function installFabric(versionId: string): Promise<string> {
 
 export async function installNeoForge(versionId: string): Promise<string> {
   return await invoke("install_neoforge", { versionId });
+}
+
+export async function listInstanceWorlds(instanceId: string): Promise<string[]> {
+  return await invoke("list_instance_worlds", { instanceId });
+}
+
+export async function openWorldDatapacksFolder(instanceId: string, worldId: string): Promise<void> {
+  await invoke("open_world_datapacks_folder", { instanceId, worldId });
+}
+
+export async function importDatapackZip(
+  instanceId: string,
+  worldId: string,
+  fileName: string,
+  dataBase64: string
+): Promise<string> {
+  return await invoke("import_datapack_zip", { instanceId, worldId, fileName, dataBase64 });
 }
 
 

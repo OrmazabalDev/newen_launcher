@@ -17,6 +17,7 @@ mod optimization;
 mod repair;
 mod skins;
 mod utils;
+mod worlds;
 
 // Importaciones
 use auth::*;
@@ -35,6 +36,7 @@ use neoforge::*;
 use repair::*;
 use skins::*;
 use utils::{get_launcher_dir, hide_background_window}; // Solo importamos lo necesario
+use worlds::*;
 
 use std::sync::Mutex;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -188,6 +190,38 @@ async fn detect_system_java() -> Result<SystemJava, String> {
     })
 }
 
+fn launch_hint(message: &str) -> Option<&'static str> {
+    let lower = message.to_lowercase();
+    if lower.contains("no has iniciado sesion") {
+        return Some("Inicia sesion y vuelve a intentar.");
+    }
+    if lower.contains("java") || lower.contains("runtime") || lower.contains("adoptium") {
+        return Some("Revisa Java o usa la descarga automatica.");
+    }
+    if lower.contains("espacio insuficiente") {
+        return Some("Libera espacio en disco e intenta de nuevo.");
+    }
+    if lower.contains("jar base") {
+        return Some("Reinstala la version desde el gestor de versiones.");
+    }
+    if lower.contains("mods incompatibles") {
+        return Some("Mueve esos mods a una instancia compatible.");
+    }
+    if lower.contains("no se encontro la version instalada") {
+        return Some("Reinstala el loader o la version.");
+    }
+    if lower.contains("no se pudo obtener espacio libre") {
+        return Some("Revisa permisos del disco.");
+    }
+    None
+}
+
+fn support_auto_upload_enabled() -> bool {
+    let raw = std::env::var("NEWEN_SUPPORT_AUTO_UPLOAD").unwrap_or_default();
+    let value = raw.trim().to_lowercase();
+    matches!(value.as_str(), "1" | "true" | "yes" | "on")
+}
+
 #[tauri::command]
 async fn launch_game(
     app: tauri::AppHandle,
@@ -231,24 +265,64 @@ async fn launch_game(
                 std::fs::write(&report_path, body).map(|_| report_path)
             };
 
-            let repair = repair_instance_impl(&app, id, &MANIFEST_CACHE, &METADATA_CACHE).await;
+            let repair = repair_instance_impl(&app, id.clone(), &MANIFEST_CACHE, &METADATA_CACHE).await;
             let repair_msg = match repair {
                 Ok(msg) => format!("Auto-repair aplicado: {}", msg),
                 Err(e) => format!("Auto-repair fallo: {}", e),
             };
             let report_msg = match prelaunch_report {
-                Ok(path) => format!("Reporte: {}", path.to_string_lossy()),
-                Err(_) => "Reporte: no se pudo guardar prelaunch-error.log".to_string(),
+                Ok(path) => format!("Log prelaunch: {}", path.to_string_lossy()),
+                Err(_) => "Log prelaunch: no se pudo guardar prelaunch-error.log".to_string(),
             };
-            return Err(format!(
-                "Fallo al lanzar: {}. {}. {}. Si persiste, abre Logs/Crash y revisa dependencias.",
-                err, repair_msg, report_msg
-            ));
+            let diagnostic = generate_diagnostic_report_for_instance_impl(&app, id.clone()).await;
+            let (diagnostic_msg, diagnostic_path) = match diagnostic {
+                Ok(path) => (format!("Reporte diagnostico: {}", path), Some(path)),
+                Err(e) => (
+                    format!("Reporte diagnostico: no se pudo generar ({})", e),
+                    None,
+                ),
+            };
+            let upload_msg = if support_auto_upload_enabled() {
+                match diagnostic_path {
+                    Some(path) => match upload_diagnostic_report_impl(
+                        &app,
+                        Some(path),
+                        Some(id.clone()),
+                    )
+                    .await
+                    {
+                        Ok(msg) => Some(format!("Soporte: {}", msg)),
+                        Err(e) => Some(format!("Soporte: {}", e)),
+                    },
+                    None => Some("Soporte: sin reporte para subir".to_string()),
+                }
+            } else {
+                None
+            };
+            let hint = launch_hint(&err);
+            let mut parts = vec![
+                format!("Fallo al lanzar: {}", err),
+                repair_msg,
+                report_msg,
+                diagnostic_msg,
+            ];
+            if let Some(msg) = upload_msg {
+                parts.push(msg);
+            }
+            if let Some(h) = hint {
+                parts.push(format!("Sugerencia: {}", h));
+            }
+            return Err(parts.join(" | "));
         }
-        return Err(format!(
-            "Fallo al lanzar: {}. Prueba Repair desde la instancia.",
-            err
-        ));
+        let hint = launch_hint(&err);
+        let mut parts = vec![
+            format!("Fallo al lanzar: {}", err),
+            "Prueba Repair desde la instancia.".to_string(),
+        ];
+        if let Some(h) = hint {
+            parts.push(format!("Sugerencia: {}", h));
+        }
+        return Err(parts.join(" | "));
     }
 
     result
@@ -383,6 +457,15 @@ async fn generate_diagnostic_report(app: tauri::AppHandle) -> Result<String, Str
 }
 
 #[tauri::command]
+async fn upload_diagnostic_report(
+    app: tauri::AppHandle,
+    report_path: Option<String>,
+    instance_id: Option<String>,
+) -> Result<String, String> {
+    upload_diagnostic_report_impl(&app, report_path, instance_id).await
+}
+
+#[tauri::command]
 async fn discord_init() -> Result<(), String> {
     crate::discord::init()
 }
@@ -392,8 +475,9 @@ async fn discord_set_activity(
     state: String,
     details: String,
     start_timestamp: Option<i64>,
+    show_buttons: bool,
 ) -> Result<(), String> {
-    crate::discord::set_activity(&state, &details, start_timestamp)
+    crate::discord::set_activity(&state, &details, start_timestamp, show_buttons)
 }
 
 #[tauri::command]
@@ -544,6 +628,16 @@ async fn modrinth_install_modpack_with_backup(
 }
 
 #[tauri::command]
+async fn modrinth_install_datapack(
+    app: tauri::AppHandle,
+    instance_id: String,
+    world_id: String,
+    version_id: String,
+) -> Result<String, String> {
+    modrinth_install_datapack_impl(&app, instance_id, world_id, version_id).await
+}
+
+#[tauri::command]
 async fn apply_optimization_pack(
     app: tauri::AppHandle,
     instance_id: String,
@@ -593,6 +687,34 @@ async fn install_fabric(app: tauri::AppHandle, version_id: String) -> Result<Str
 #[tauri::command]
 async fn install_neoforge(app: tauri::AppHandle, version_id: String) -> Result<String, String> {
     install_neoforge_impl(&app, version_id, None, &MANIFEST_CACHE, &METADATA_CACHE).await
+}
+
+#[tauri::command]
+async fn list_instance_worlds(
+    app: tauri::AppHandle,
+    instance_id: String,
+) -> Result<Vec<String>, String> {
+    list_instance_worlds_impl(&app, instance_id).await
+}
+
+#[tauri::command]
+fn open_world_datapacks_folder(
+    app: tauri::AppHandle,
+    instance_id: String,
+    world_id: String,
+) -> Result<(), String> {
+    open_world_datapacks_folder_impl(&app, instance_id, world_id)
+}
+
+#[tauri::command]
+async fn import_datapack_zip(
+    app: tauri::AppHandle,
+    instance_id: String,
+    world_id: String,
+    file_name: String,
+    data_base64: String,
+) -> Result<String, String> {
+    import_datapack_zip_impl(&app, instance_id, world_id, file_name, data_base64).await
 }
 
 // --- COMANDOS DE AUTENTICACIÓN ---
@@ -689,6 +811,7 @@ pub fn run() {
             close_splash,
             repair_instance,
             generate_diagnostic_report,
+            upload_diagnostic_report,
             // Modrinth
             modrinth_search,
             modrinth_list_versions,
@@ -696,6 +819,7 @@ pub fn run() {
             modrinth_install_version,
             modrinth_install_modpack,
             modrinth_install_modpack_with_backup,
+            modrinth_install_datapack,
             apply_optimization_pack,
             rollback_optimization,
             curseforge_search,
@@ -710,6 +834,9 @@ pub fn run() {
             install_forge,
             install_fabric,
             install_neoforge,
+            list_instance_worlds,
+            open_world_datapacks_folder,
+            import_datapack_zip,
             // Skins (offline)
             get_active_skin,
             set_active_skin_base64,

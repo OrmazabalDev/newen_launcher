@@ -15,6 +15,7 @@ use crate::optimization::apply_options_profile;
 use crate::repair::repair_instance_impl;
 use crate::utils::append_action_log;
 use crate::utils::get_launcher_dir;
+use crate::worlds::world_datapacks_dir;
 use futures_util::{stream, StreamExt};
 use reqwest::Url;
 use serde::de::DeserializeOwned;
@@ -597,6 +598,45 @@ pub async fn modrinth_install_version_impl(
     )
     .await;
     Ok(format!("Instalados {} mods/dependencias", installed))
+}
+
+pub async fn modrinth_install_datapack_impl(
+    app: &AppHandle,
+    instance_id: String,
+    world_id: String,
+    version_id: String,
+) -> Result<String, String> {
+    let base = instance_dir(app, &instance_id);
+    if !base.exists() {
+        return Err("La instancia no existe".to_string());
+    }
+
+    let world_dir = base.join("saves").join(&world_id);
+    if !world_dir.exists() {
+        return Err("El mundo no existe".to_string());
+    }
+
+    let version = modrinth_get_version(app, &version_id).await?;
+    let (url, filename, size, sha1) =
+        pick_primary_file(&version).ok_or("No hay archivo para instalar".to_string())?;
+
+    let dest_dir = world_datapacks_dir(app, &instance_id, &world_id);
+    tokio_fs::create_dir_all(&dest_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+    let dest = dest_dir.join(filename);
+    download_file_checked(url, &dest, size, sha1).await?;
+
+    let _ = append_action_log(
+        app,
+        &format!(
+            "datapack_install instance={} world={} version={}",
+            instance_id, world_id, version_id
+        ),
+    )
+    .await;
+
+    Ok(format!("Datapack instalado ({})", filename))
 }
 
 pub async fn modrinth_install_modpack_impl(

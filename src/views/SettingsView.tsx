@@ -15,12 +15,17 @@ const DEFAULT_SETTINGS: GameSettings = {
 };
 
 const RAM_PRESETS = [2, 4, 6, 8, 12, 16];
+const UI_SCALES = [0.9, 1, 1.1, 1.25];
 export function SettingsView({
   settings,
   onChange,
+  uiScale,
+  onChangeUiScale,
 }: {
   settings: GameSettings;
   onChange: (s: GameSettings) => void;
+  uiScale: number;
+  onChangeUiScale: (value: number) => void;
 }) {
   const presets = useMemo(
     () => [
@@ -42,8 +47,11 @@ export function SettingsView({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [cacheStatus, setCacheStatus] = useState("");
   const [reportStatus, setReportStatus] = useState("");
+  const [reportPath, setReportPath] = useState("");
+  const [uploadStatus, setUploadStatus] = useState("");
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isUploadingReport, setIsUploadingReport] = useState(false);
 
   const currentPreset = findPreset(settings.resolution.width, settings.resolution.height);
 
@@ -84,14 +92,34 @@ export function SettingsView({
 
   const handleGenerateReport = async () => {
     setReportStatus("Generando reporte...");
+    setUploadStatus("");
     setIsGeneratingReport(true);
     try {
       const path = await tauri.generateDiagnosticReport();
       setReportStatus(`Reporte generado: ${path}`);
+      setReportPath(path);
     } catch (e: any) {
       setReportStatus("Error generando reporte: " + String(e));
+      setReportPath("");
     } finally {
       setIsGeneratingReport(false);
+    }
+  };
+
+  const handleUploadReport = async () => {
+    if (!reportPath) {
+      setUploadStatus("Primero genera un reporte.");
+      return;
+    }
+    setUploadStatus("Subiendo reporte...");
+    setIsUploadingReport(true);
+    try {
+      const res = await tauri.uploadDiagnosticReport(reportPath);
+      setUploadStatus(res);
+    } catch (e: any) {
+      setUploadStatus("Error subiendo reporte: " + String(e));
+    } finally {
+      setIsUploadingReport(false);
     }
   };
 
@@ -288,6 +316,36 @@ export function SettingsView({
           </section>
 
           <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">
+            <h3 className="text-lg font-bold text-white mb-2">Interfaz</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Ajusta el tamaño de la UI sin deformar el layout.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {UI_SCALES.map((scale) => {
+                const label = `${Math.round(scale * 100)}%`;
+                const active = Math.abs(uiScale - scale) < 0.01;
+                return (
+                  <button
+                    key={scale}
+                    type="button"
+                    onClick={() => onChangeUiScale(scale)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+                      active
+                        ? "bg-brand-accent text-white border-brand-accent/70"
+                        : "bg-gray-900 text-gray-300 border-gray-700"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-3 text-xs text-gray-500">
+              Recomendado: 100%. Si ves recortes, reduce la escala o amplia la ventana.
+            </div>
+          </section>
+
+          <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">
             <h3 className="text-lg font-bold text-white mb-2">Cache</h3>
             <p className="text-xs text-gray-400 mb-4">
               Limpia archivos temporales de descargas y manifiestos. No borra instancias.
@@ -314,19 +372,36 @@ export function SettingsView({
             <p className="text-xs text-gray-400 mb-4">
               Genera un reporte con logs y configuracion para soporte tecnico.
             </p>
-            <button
-              type="button"
-              onClick={handleGenerateReport}
-              disabled={isGeneratingReport}
-              aria-disabled={isGeneratingReport}
-              title={isGeneratingReport ? "Generando reporte..." : "Generar reporte"}
-              className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isGeneratingReport ? "Generando..." : "Generar reporte"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleGenerateReport}
+                disabled={isGeneratingReport}
+                aria-disabled={isGeneratingReport}
+                title={isGeneratingReport ? "Generando reporte..." : "Generar reporte"}
+                className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isGeneratingReport ? "Generando..." : "Generar reporte"}
+              </button>
+              <button
+                type="button"
+                onClick={handleUploadReport}
+                disabled={!reportPath || isUploadingReport}
+                aria-disabled={!reportPath || isUploadingReport}
+                title={isUploadingReport ? "Subiendo reporte..." : "Subir reporte"}
+                className="px-4 py-2 rounded-xl bg-brand-info hover:bg-brand-info/90 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isUploadingReport ? "Subiendo..." : "Subir reporte"}
+              </button>
+            </div>
             {reportStatus && (
               <div className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
                 {reportStatus}
+              </div>
+            )}
+            {uploadStatus && (
+              <div className="mt-2 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
+                {uploadStatus}
               </div>
             )}
           </section>

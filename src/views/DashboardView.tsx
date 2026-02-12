@@ -37,6 +37,12 @@ export function DashboardView({
   const statusLower = statusText.toLowerCase();
   const isError = statusLower.startsWith("error");
   const isSuccess = statusLower.startsWith("listo");
+  const reportPathMatch = statusText.match(/Reporte diagnostico:\s*([^|]+)/i);
+  const reportPath = reportPathMatch ? reportPathMatch[1].trim() : "";
+  const prelaunchMatch = statusText.match(/Log prelaunch:\s*([^|]+)/i);
+  const prelaunchPath = prelaunchMatch ? prelaunchMatch[1].trim() : "";
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [isUploadingReport, setIsUploadingReport] = useState(false);
   const [metrics, setMetrics] = useState<RuntimeMetrics | null>(null);
   const [smoothedLauncherCpu, setSmoothedLauncherCpu] = useState<number | null>(null);
   const [smoothedGameCpu, setSmoothedGameCpu] = useState<number | null>(null);
@@ -87,6 +93,11 @@ export function DashboardView({
   useEffect(() => {
     setSmoothedGameCpu(null);
   }, [gamePid]);
+
+  useEffect(() => {
+    setUploadStatus("");
+    setIsUploadingReport(false);
+  }, [statusText]);
 
   useEffect(() => {
     if (!metrics) return;
@@ -368,13 +379,65 @@ export function DashboardView({
               {statusText}
             </div>
             {isError && hasInstance && (
-              <button
-                type="button"
-                onClick={onRepairInstance}
-                className="px-4 py-2 rounded-xl bg-white/5 text-gray-200 hover:bg-white/10 text-sm"
-              >
-                Reparar instancia
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={onRepairInstance}
+                  className="px-4 py-2 rounded-xl bg-white/5 text-gray-200 hover:bg-white/10 text-sm"
+                >
+                  Reparar instancia
+                </button>
+                {reportPath && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(reportPath).catch(() => undefined);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-white/5 text-gray-200 hover:bg-white/10 text-sm"
+                  >
+                    Copiar reporte
+                  </button>
+                )}
+                {reportPath && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!reportPath || isUploadingReport) return;
+                      setUploadStatus("Subiendo reporte...");
+                      setIsUploadingReport(true);
+                      try {
+                        const res = await tauri.uploadDiagnosticReport(reportPath, selectedInstance?.id);
+                        setUploadStatus(res);
+                      } catch (e: any) {
+                        setUploadStatus("Error subiendo reporte: " + String(e));
+                      } finally {
+                        setIsUploadingReport(false);
+                      }
+                    }}
+                    disabled={isUploadingReport}
+                    aria-disabled={isUploadingReport}
+                    className="px-4 py-2 rounded-xl bg-brand-info text-white hover:bg-brand-info/90 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isUploadingReport ? "Subiendo..." : "Subir reporte"}
+                  </button>
+                )}
+                {prelaunchPath && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(prelaunchPath).catch(() => undefined);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-white/5 text-gray-200 hover:bg-white/10 text-sm"
+                  >
+                    Copiar log
+                  </button>
+                )}
+              </div>
+            )}
+            {uploadStatus && (
+              <div className="text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
+                {uploadStatus}
+              </div>
             )}
           </div>
         )}

@@ -56,6 +56,7 @@ export default function App() {
 
   // Configuracion del juego.
   const [gameSettings, setGameSettings] = useState<GameSettings>(persisted.gameSettings);
+  const [uiScale, setUiScale] = useState<number>(persisted.uiScale ?? 1);
 
   // Filtro de snapshots en Manager.
   const [showSnapshots, setShowSnapshots] = useState<boolean>(persisted.showSnapshots);
@@ -209,6 +210,12 @@ export default function App() {
   useEffect(() => saveSession({ selectedInstanceId }), [selectedInstanceId]);
   useEffect(() => saveSession({ showSnapshots }), [showSnapshots]);
   useEffect(() => saveSession({ gameSettings }), [gameSettings]);
+  useEffect(() => saveSession({ uiScale }), [uiScale]);
+
+  useEffect(() => {
+    const scale = Math.max(0.85, Math.min(1.3, uiScale || 1));
+    document.documentElement.style.zoom = String(scale);
+  }, [uiScale]);
 
   const loadMojangVersions = async () => {
     if (mojangVersions.length > 0) return;
@@ -455,6 +462,8 @@ export default function App() {
           <SettingsView
             settings={gameSettings}
             onChange={setGameSettings}
+            uiScale={uiScale}
+            onChangeUiScale={setUiScale}
           />
         )}
 

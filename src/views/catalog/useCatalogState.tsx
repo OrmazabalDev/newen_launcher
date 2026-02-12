@@ -62,6 +62,11 @@ export function useCatalogState({
   const [versions, setVersions] = useState<ModrinthVersion[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [installedItems, setInstalledItems] = useState<InstanceContentItem[]>([]);
+  const [worlds, setWorlds] = useState<string[]>([]);
+  const [worldsLoading, setWorldsLoading] = useState(false);
+  const [worldsError, setWorldsError] = useState("");
+  const [selectedWorldId, setSelectedWorldId] = useState("");
+  const [importingDatapack, setImportingDatapack] = useState(false);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [installingVersionId, setInstallingVersionId] = useState<string | null>(null);
@@ -73,7 +78,8 @@ export function useCatalogState({
     action?:
       | { type: "open-content"; instanceId: string; kind: "mods" | "resourcepacks" | "shaderpacks" }
       | { type: "open-instance"; instanceId: string }
-      | { type: "go-instances" };
+      | { type: "go-instances" }
+      | { type: "open-datapacks"; instanceId: string; worldId: string };
   } | null>(null);
   const toastTimer = useRef<number | null>(null);
   const modModalRef = useRef<HTMLDivElement | null>(null);
@@ -95,7 +101,11 @@ export function useCatalogState({
   const headerSubtitle =
     subtitle ?? "Explora Modrinth por tipo, categoría y versión. Puedes instalar mods, modpacks, resource packs y shaders.";
   const searchPlaceholder =
-    projectType === "modpack" ? "Busca modpacks (ej: Better Minecraft)" : "Busca mods (ej: Sodium, JEI, Journeymap)";
+    projectType === "modpack"
+      ? "Busca modpacks (ej: Better Minecraft)"
+      : projectType === "datapack"
+        ? "Busca datapacks (ej: Terralith, Vanilla Tweaks)"
+        : "Busca mods (ej: Sodium, JEI, Journeymap)";
   const showProjectTabs = !lockedProjectType;
   const showSourceToggle = !lockSource;
 
@@ -118,7 +128,7 @@ export function useCatalogState({
   );
   const eligibleInstances = useMemo(() => {
     if (!requiresInstance) return nonModpackInstances;
-    if (projectType === "resourcepack" || projectType === "shader") {
+    if (projectType === "resourcepack" || projectType === "shader" || projectType === "datapack") {
       return nonModpackInstances;
     }
     return nonModpackInstances.filter((i) => i.loader === "forge" || i.loader === "neoforge" || i.loader === "fabric");
@@ -132,6 +142,7 @@ export function useCatalogState({
   const loaderFilter = projectType === "mod" ? loader : undefined;
   const gameVersionFilter = projectType === "modpack" ? undefined : gameVersion;
   const projectTypeLabel = PROJECT_TYPES.find((t) => t.id === projectType)?.label ?? "Mods";
+  const isDatapack = projectType === "datapack";
   const categoryFilters = useMemo(() => {
     if (projectType === "modpack") {
       return modpackLoader !== "any" ? [modpackLoader] : undefined;
@@ -227,15 +238,17 @@ export function useCatalogState({
   const installLabel = isVersionInstalled
     ? "Instalado"
     : isProjectInstalled
-      ? `Actualizar ${String(projectTypeLabel).toLowerCase()}`
-      : `Instalar ${String(projectTypeLabel).toLowerCase()}`;
+      ? projectType === "datapack"
+        ? "Actualizar datapack"
+        : `Actualizar ${String(projectTypeLabel).toLowerCase()}`
+      : projectType === "datapack"
+        ? "Instalar datapack"
+        : `Instalar ${String(projectTypeLabel).toLowerCase()}`;
   const isInstallingSelected = Boolean(installingVersionId && selectedVersionId && installingVersionId === selectedVersionId);
   const installCtaText =
-    projectType === "datapack"
-      ? "Próximamente"
-      : isInstallingSelected
-        ? "Instalando..."
-        : installLabel;
+    isInstallingSelected
+      ? "Instalando..."
+      : installLabel;
   const installButtonContent = isInstallingSelected ? (
     <span className="inline-flex items-center justify-center gap-2">
       <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
@@ -253,22 +266,47 @@ export function useCatalogState({
   ) : (
     "Instalar modpack"
   );
+  const needsWorld = isDatapack;
+  const hasWorld = !needsWorld || Boolean(selectedWorldId);
   const installDisabled =
     !selectedVersionId ||
     loading ||
-    projectType === "datapack" ||
-    isVersionInstalled;
+    (needsWorld && (worldsLoading || !hasWorld)) ||
+    (!isDatapack && isVersionInstalled);
   const installDisabledReason = !selectedVersionId
-    ? "Selecciona una versión para instalar."
+    ? "Selecciona una version para instalar."
     : loading
       ? "Espera a que finalice la carga."
-      : projectType === "datapack"
-        ? "Los datapacks se instalarán próximamente."
-        : isVersionInstalled
-          ? "Esta versión ya está instalada."
-          : "";
+      : needsWorld && worldsLoading
+        ? "Cargando mundos..."
+        : needsWorld && worlds.length === 0
+          ? "No hay mundos disponibles."
+          : needsWorld && !selectedWorldId
+            ? "Selecciona un mundo."
+            : !isDatapack && isVersionInstalled
+              ? "Esta version ya esta version ya esta instalada."
+              : "";
+  const datapackImportDisabled =
+    !isDatapack ||
+    !selectedInstance ||
+    worldsLoading ||
+    worlds.length === 0 ||
+    !selectedWorldId ||
+    importingDatapack;
+  const datapackImportDisabledReason = !isDatapack
+    ? ""
+    : !selectedInstance
+      ? "Selecciona una instancia."
+      : worldsLoading
+        ? "Cargando mundos..."
+        : worlds.length === 0
+          ? "No hay mundos disponibles."
+          : !selectedWorldId
+            ? "Selecciona un mundo."
+            : "";
+
   const modpackInstallDisabledReason = !selectedVersionId
-    ? "Selecciona una versión para instalar."
+    ? "Selecciona una version para instalar."
     : loading
       ? "Espera a que finalice la carga."
       : "";
@@ -334,7 +372,8 @@ export function useCatalogState({
       action?:
         | { type: "open-content"; instanceId: string; kind: "mods" | "resourcepacks" | "shaderpacks" }
         | { type: "open-instance"; instanceId: string }
-        | { type: "go-instances" };
+        | { type: "go-instances" }
+        | { type: "open-datapacks"; instanceId: string; worldId: string };
     }) => {
       if (toastTimer.current) {
         window.clearTimeout(toastTimer.current);
@@ -366,6 +405,8 @@ export function useCatalogState({
         if (onGoInstances) {
           onGoInstances();
         }
+      } else if (action.type === "open-datapacks") {
+        await tauri.openWorldDatapacksFolder(action.instanceId, action.worldId);
       }
     } catch {
       showToast({ message: "No se pudo abrir la carpeta.", kind: "error" });
@@ -538,6 +579,41 @@ export function useCatalogState({
     onClose: closeProjectModal,
   });
 
+  useEffect(() => {
+    if (!isModModalOpen || !isDatapack || !selectedInstance) {
+      setWorlds([]);
+      setSelectedWorldId("");
+      setWorldsError("");
+      setWorldsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setWorldsLoading(true);
+    setWorldsError("");
+    tauri
+      .listInstanceWorlds(selectedInstance.id)
+      .then((list) => {
+        if (cancelled) return;
+        setWorlds(list);
+        setSelectedWorldId((current) => {
+          if (current && list.includes(current)) return current;
+          return list[0] || "";
+        });
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setWorlds([]);
+        setSelectedWorldId("");
+        setWorldsError(String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setWorldsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isModModalOpen, isDatapack, selectedInstance?.id]);
+
   const handleSelectProject = async (project: ModrinthProjectHit) => {
     setSelectedProject(project);
     if (projectType === "modpack") {
@@ -560,10 +636,43 @@ export function useCatalogState({
   const handleInstall = async (versionId: string) => {
     if (installingVersionId) return;
     if (projectType === "datapack") {
-      setStatus("Los Data Packs requieren elegir un mundo. Próximamente.");
+      if (!selectedInstance) {
+        setStatus("Selecciona una instancia para instalar datapacks.");
+        return;
+      }
+      if (!selectedWorldId) {
+        if (worldsLoading) {
+          setStatus("Cargando mundos...");
+        } else if (worlds.length === 0) {
+          setStatus("No hay mundos disponibles. Crea uno primero.");
+        } else {
+          setStatus("Selecciona un mundo para instalar el datapack.");
+        }
+        return;
+      }
+      setInstallingVersionId(versionId);
+      setLoading(true);
+      setStatus("Instalando datapack...");
+      try {
+        const msg = await tauri.modrinthInstallDatapack(selectedInstance.id, selectedWorldId, versionId);
+        setStatus(msg);
+        showToast({
+          message: "Datapack instalado.",
+          kind: "success",
+          actionLabel: "Abrir carpeta",
+          action: { type: "open-datapacks", instanceId: selectedInstance.id, worldId: selectedWorldId },
+        });
+      } catch (e: any) {
+        setStatus("Error instalando datapack: " + String(e));
+        showToast({ message: "No se pudo instalar el datapack.", kind: "error" });
+      } finally {
+        setLoading(false);
+        setInstallingVersionId(null);
+      }
       return;
     }
     if (projectType === "modpack") {
+
       if (!selectedProject) {
         setStatus("Selecciona un modpack primero.");
         return;
@@ -687,6 +796,55 @@ export function useCatalogState({
     } finally {
       setLoading(false);
       setInstallingVersionId(null);
+    }
+  };
+
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+      reader.readAsDataURL(file);
+    });
+
+  const handleImportDatapack = async (file: File) => {
+    if (!isDatapack) return;
+    if (!selectedInstance) {
+      setStatus("Selecciona una instancia para importar datapacks.");
+      return;
+    }
+    if (!selectedWorldId) {
+      if (worldsLoading) {
+        setStatus("Cargando mundos...");
+      } else if (worlds.length === 0) {
+        setStatus("No hay mundos disponibles. Crea uno primero.");
+      } else {
+        setStatus("Selecciona un mundo para importar el datapack.");
+      }
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+      setStatus("Solo se permiten archivos .zip.");
+      return;
+    }
+    setImportingDatapack(true);
+    setStatus("Importando datapack...");
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const base64 = dataUrl.split(",")[1] || "";
+      const msg = await tauri.importDatapackZip(selectedInstance.id, selectedWorldId, file.name, base64);
+      setStatus(msg);
+      showToast({
+        message: "Datapack importado.",
+        kind: "success",
+        actionLabel: "Abrir carpeta",
+        action: { type: "open-datapacks", instanceId: selectedInstance.id, worldId: selectedWorldId },
+      });
+    } catch (e: any) {
+      setStatus("Error importando datapack: " + String(e));
+      showToast({ message: "No se pudo importar el datapack.", kind: "error" });
+    } finally {
+      setImportingDatapack(false);
     }
   };
 
@@ -881,6 +1039,11 @@ export function useCatalogState({
     selectedVersionId,
     status,
     loading,
+    worlds,
+    worldsLoading,
+    worldsError,
+    selectedWorldId,
+    importingDatapack,
     curseforgeNeedsKey,
     toast,
     modModalRef,
@@ -939,6 +1102,8 @@ export function useCatalogState({
     modpackButtonContent,
     installDisabled,
     installDisabledReason,
+    datapackImportDisabled,
+    datapackImportDisabledReason,
     modpackInstallDisabledReason,
     showCatalogSkeleton,
     showEmptyState,
@@ -967,8 +1132,10 @@ export function useCatalogState({
     closeCurseModal,
     handleSelectProject,
     handleInstall,
+    handleImportDatapack,
     handleToastAction,
     setSelectedCurse,
     setSelectedVersionId,
+    setSelectedWorldId,
   };
 }

@@ -42,6 +42,11 @@ export function CatalogView({
     selectedVersionId,
     status,
     loading,
+    worlds,
+    worldsLoading,
+    worldsError,
+    selectedWorldId,
+    importingDatapack,
     toast,
     modModalRef,
     modCloseRef,
@@ -97,6 +102,8 @@ export function CatalogView({
     modpackButtonContent,
     installDisabled,
     installDisabledReason,
+    datapackImportDisabled,
+    datapackImportDisabledReason,
     modpackInstallDisabledReason,
     showCatalogSkeleton,
     showEmptyState,
@@ -125,9 +132,11 @@ export function CatalogView({
     closeCurseModal,
     handleSelectProject,
     handleInstall,
+    handleImportDatapack,
     handleToastAction,
     setSelectedCurse,
     setSelectedVersionId,
+    setSelectedWorldId,
   } = useCatalogState({
     instances,
     selectedInstanceId,
@@ -314,6 +323,15 @@ export function CatalogView({
         versions={versions}
         selectedVersionId={selectedVersionId}
         onSelectVersionId={setSelectedVersionId}
+        worlds={worlds}
+        worldsLoading={worldsLoading}
+        worldsError={worldsError}
+        selectedWorldId={selectedWorldId}
+        onSelectWorldId={setSelectedWorldId}
+        importingDatapack={importingDatapack}
+        datapackImportDisabled={datapackImportDisabled}
+        datapackImportDisabledReason={datapackImportDisabledReason}
+        onImportDatapack={handleImportDatapack}
         onInstall={handleInstall}
         installDisabled={installDisabled}
         installButtonContent={installButtonContent}

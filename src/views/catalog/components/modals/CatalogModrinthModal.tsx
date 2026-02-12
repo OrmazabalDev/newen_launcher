@@ -16,6 +16,15 @@ type CatalogModrinthModalProps = {
   versions: ModrinthVersion[];
   selectedVersionId: string;
   onSelectVersionId: (value: string) => void;
+  worlds: string[];
+  worldsLoading: boolean;
+  worldsError: string;
+  selectedWorldId: string;
+  onSelectWorldId: (value: string) => void;
+  importingDatapack: boolean;
+  datapackImportDisabled: boolean;
+  datapackImportDisabledReason: string;
+  onImportDatapack: (file: File) => void | Promise<void>;
   onInstall: (versionId: string) => void | Promise<void>;
   installDisabled: boolean;
   installButtonContent: ReactNode;
@@ -40,6 +49,15 @@ export function CatalogModrinthModal({
   versions,
   selectedVersionId,
   onSelectVersionId,
+  worlds,
+  worldsLoading,
+  worldsError,
+  selectedWorldId,
+  onSelectWorldId,
+  importingDatapack,
+  datapackImportDisabled,
+  datapackImportDisabledReason,
+  onImportDatapack,
   onInstall,
   installDisabled,
   installButtonContent,
@@ -113,6 +131,69 @@ export function CatalogModrinthModal({
             {versions.length === 0 && <div className="text-gray-500 text-sm">Sin versiones encontradas.</div>}
             {versions.length > 0 && (
               <div className="bg-gray-950/60 border border-gray-800 rounded-xl p-4 space-y-3">
+                {projectType === "datapack" && (
+                  <div className="space-y-2">
+                    <label className="block text-[11px] uppercase tracking-widest text-gray-400">
+                      Mundo
+                    </label>
+                    {worldsLoading ? (
+                      <div className="text-xs text-gray-400">Cargando mundos...</div>
+                    ) : worlds.length === 0 ? (
+                      <div className="text-xs text-amber-300">
+                        No hay mundos disponibles. Inicia el juego y crea un mundo primero.
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <select
+                          className="w-full appearance-none bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-brand-accent"
+                          value={selectedWorldId}
+                          onChange={(e) => onSelectWorldId(e.target.value)}
+                        >
+                          {worlds.map((world) => (
+                            <option key={world} value={world}>
+                              {world}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                          <IconChevronDown />
+                        </div>
+                      </div>
+                    )}
+                    {worldsError && (
+                      <div className="text-xs text-red-300">Error cargando mundos: {worldsError}</div>
+                    )}
+                  </div>
+                )}
+                {projectType === "datapack" && (
+                  <div className="space-y-2">
+                    <label className="block text-[11px] uppercase tracking-widest text-gray-400">
+                      Importar ZIP
+                    </label>
+                    <input
+                      type="file"
+                      accept=".zip,application/zip"
+                      disabled={datapackImportDisabled || importingDatapack}
+                      aria-disabled={datapackImportDisabled || importingDatapack}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          void onImportDatapack(file);
+                        }
+                        e.currentTarget.value = "";
+                      }}
+                      className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-info file:text-white hover:file:bg-brand-info/90 disabled:opacity-60 disabled:cursor-not-allowed"
+                    />
+                    {datapackImportDisabledReason && (
+                      <div className="text-[11px] text-amber-300">{datapackImportDisabledReason}</div>
+                    )}
+                    {!datapackImportDisabledReason && (
+                      <div className="text-[11px] text-gray-500">
+                        Solo archivos .zip. Se copiaran a la carpeta del mundo seleccionado.
+                      </div>
+                    )}
+                  </div>
+                )}
                 <label className="block text-[11px] uppercase tracking-widest text-gray-400">
                   Versión disponible
                 </label>
