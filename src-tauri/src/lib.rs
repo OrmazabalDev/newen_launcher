@@ -628,6 +628,33 @@ async fn modrinth_install_modpack_with_backup(
 }
 
 #[tauri::command]
+async fn import_modpack_mrpack(
+    app: tauri::AppHandle,
+    name: Option<String>,
+    file_name: String,
+    data_base64: String,
+) -> Result<InstanceSummary, String> {
+    import_modpack_mrpack_impl(
+        &app,
+        name,
+        file_name,
+        data_base64,
+        &MANIFEST_CACHE,
+        &METADATA_CACHE,
+    )
+    .await
+}
+
+#[tauri::command]
+async fn export_modpack_mrpack(
+    app: tauri::AppHandle,
+    instance_id: String,
+    dest_path: Option<String>,
+) -> Result<String, String> {
+    export_modpack_mrpack_impl(&app, instance_id, dest_path).await
+}
+
+#[tauri::command]
 async fn modrinth_install_datapack(
     app: tauri::AppHandle,
     instance_id: String,
@@ -755,6 +782,7 @@ async fn refresh_ms_profile(app: tauri::AppHandle) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
             #[cfg(desktop)]
@@ -819,6 +847,8 @@ pub fn run() {
             modrinth_install_version,
             modrinth_install_modpack,
             modrinth_install_modpack_with_backup,
+            import_modpack_mrpack,
+            export_modpack_mrpack,
             modrinth_install_datapack,
             apply_optimization_pack,
             rollback_optimization,

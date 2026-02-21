@@ -42,14 +42,19 @@
         gap: 10px;
       }
       .logo {
-        width: 38px;
-        height: 38px;
+        width: 46px;
+        height: 46px;
         border-radius: 12px;
-        background: linear-gradient(135deg, #f97316, #fb923c);
         display: grid;
         place-items: center;
-        font-weight: 800;
-        letter-spacing: 0.06em;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+      .logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
       }
       .text {
         font-size: 12px;
@@ -88,7 +93,9 @@
   <body>
     <div class="wrap">
       <div class="card">
-        <div class="logo">N</div>
+        <div class="logo">
+          <img src="./newen_icono.png" alt="Newen" />
+        </div>
         <div class="text">Inicializando...</div>
         <div class="loader"></div>
       </div>

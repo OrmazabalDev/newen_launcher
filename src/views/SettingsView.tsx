@@ -44,7 +44,6 @@ export function SettingsView({
   const [resolutionMode, setResolutionMode] = useState<"preset" | "custom">(
     findPreset(settings.resolution.width, settings.resolution.height) ? "preset" : "custom"
   );
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [cacheStatus, setCacheStatus] = useState("");
   const [reportStatus, setReportStatus] = useState("");
   const [reportPath, setReportPath] = useState("");
@@ -62,11 +61,6 @@ export function SettingsView({
 
   const setResolution = (width: number, height: number) =>
     onChange({ ...settings, resolution: { width, height } });
-
-  const setMinRam = (minGb: number) => {
-    const maxGb = Math.max(minGb, settings.memory.maxGb);
-    onChange({ ...settings, memory: { minGb, maxGb } });
-  };
 
   const setMaxRam = (maxGb: number) => {
     const minGb = Math.min(settings.memory.minGb, maxGb);
@@ -128,7 +122,7 @@ export function SettingsView({
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white">Ajustes</h2>
         <p className="text-gray-300 text-sm">
-          Personaliza rendimiento, video y opciones avanzadas. Los cambios se guardan automáticamente.
+          Personaliza rendimiento, video e interfaz. Los cambios se guardan automaticamente.
         </p>
       </div>
 
@@ -281,41 +275,6 @@ export function SettingsView({
 
         <div className="space-y-6">
           <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-white">Avanzado</h3>
-                <p className="text-xs text-gray-400">Opciones para usuarios tecnicos.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((prev) => !prev)}
-                className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-200 text-xs font-bold"
-              >
-                {showAdvanced ? "Ocultar" : "Mostrar"}
-              </button>
-            </div>
-
-            {showAdvanced && (
-              <div className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
-                    RAM minima (GB)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={settings.memory.maxGb}
-                    value={settings.memory.minGb}
-                    onChange={(e) => setMinRam(Number(e.target.value))}
-                    className="w-full bg-gray-950 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-accent"
-                  />
-                </div>
-
-              </div>
-            )}
-          </section>
-
-          <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">
             <h3 className="text-lg font-bold text-white mb-2">Interfaz</h3>
             <p className="text-xs text-gray-400 mb-4">
               Ajusta el tamaño de la UI sin deformar el layout.
@@ -346,67 +305,6 @@ export function SettingsView({
           </section>
 
           <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">
-            <h3 className="text-lg font-bold text-white mb-2">Cache</h3>
-            <p className="text-xs text-gray-400 mb-4">
-              Limpia archivos temporales de descargas y manifiestos. No borra instancias.
-            </p>
-            <button
-              type="button"
-              onClick={handleClearCache}
-              disabled={isClearingCache}
-              aria-disabled={isClearingCache}
-              title={isClearingCache ? "Limpiando cache..." : "Limpiar cache"}
-              className="px-4 py-2 rounded-xl bg-brand-info hover:bg-brand-info/90 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isClearingCache ? "Limpiando..." : "Limpiar cache"}
-            </button>
-            {cacheStatus && (
-              <div className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
-                {cacheStatus}
-              </div>
-            )}
-          </section>
-
-          <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">
-            <h3 className="text-lg font-bold text-white mb-2">Diagnostico</h3>
-            <p className="text-xs text-gray-400 mb-4">
-              Genera un reporte con logs y configuracion para soporte tecnico.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleGenerateReport}
-                disabled={isGeneratingReport}
-                aria-disabled={isGeneratingReport}
-                title={isGeneratingReport ? "Generando reporte..." : "Generar reporte"}
-                className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isGeneratingReport ? "Generando..." : "Generar reporte"}
-              </button>
-              <button
-                type="button"
-                onClick={handleUploadReport}
-                disabled={!reportPath || isUploadingReport}
-                aria-disabled={!reportPath || isUploadingReport}
-                title={isUploadingReport ? "Subiendo reporte..." : "Subir reporte"}
-                className="px-4 py-2 rounded-xl bg-brand-info hover:bg-brand-info/90 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isUploadingReport ? "Subiendo..." : "Subir reporte"}
-              </button>
-            </div>
-            {reportStatus && (
-              <div className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
-                {reportStatus}
-              </div>
-            )}
-            {uploadStatus && (
-              <div className="mt-2 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
-                {uploadStatus}
-              </div>
-            )}
-          </section>
-
-          <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">
             <h3 className="text-lg font-bold text-white mb-2">Comportamiento</h3>
             <p className="text-xs text-gray-400 mb-4">
               Activa el modo enfoque para minimizar el launcher cuando el juego arranca y restaurarlo al cerrar.
@@ -429,6 +327,66 @@ export function SettingsView({
               />
               <span className="text-sm text-gray-100">Overlay de rendimiento en el launcher</span>
             </label>
+          </section>
+
+          <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">
+            <h3 className="text-lg font-bold text-white mb-2">Cache</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Limpia archivos temporales de descargas y manifiestos. No borra instancias.
+            </p>
+            <button
+              type="button"
+              onClick={handleClearCache}
+              disabled={isClearingCache}
+              aria-disabled={isClearingCache}
+              title={isClearingCache ? "Limpiando cache..." : "Limpiar cache"}
+              className="px-4 py-2 rounded-xl bg-brand-info hover:bg-brand-info/90 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isClearingCache ? "Limpiando..." : "Limpiar cache"}
+            </button>
+            {cacheStatus && (
+              <div className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
+                {cacheStatus}
+              </div>
+            )}
+          </section>
+
+          <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 min-w-0">
+            <h3 className="text-lg font-bold text-white mb-2">Diagnostico</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Genera un reporte con logs y configuracion para soporte tecnico.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleGenerateReport}
+                disabled={isGeneratingReport}
+                aria-disabled={isGeneratingReport}
+                title={isGeneratingReport ? "Generando reporte..." : "Generar reporte"}
+                className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isGeneratingReport ? "Generando..." : "Generar reporte"}
+              </button>
+              <button
+                type="button"
+                disabled
+                aria-disabled
+                title="Proximamente"
+                className="px-4 py-2 rounded-xl bg-gray-800 text-gray-400 font-bold cursor-not-allowed"
+              >
+                Proximamente
+              </button>
+            </div>
+            {reportStatus && (
+              <div className="mt-3 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2 max-w-full break-all">
+                {reportStatus}
+              </div>
+            )}
+            {uploadStatus && (
+              <div className="mt-2 text-xs text-gray-300 bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2 max-w-full break-all">
+                {uploadStatus}
+              </div>
+            )}
           </section>
 
           <section className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5">

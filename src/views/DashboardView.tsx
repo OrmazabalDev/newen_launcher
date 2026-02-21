@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { GameSettings, InstanceSummary, RuntimeMetrics, SystemJava } from "../types";
 import { IconChevronDown, IconJava } from "../icons";
-import { Cpu, Edit3, HardDrive, Play } from "lucide-react";
+import { Edit3, HardDrive, Play } from "lucide-react";
 import * as tauri from "../services/tauri";
 
 export function DashboardView({
@@ -44,8 +44,6 @@ export function DashboardView({
   const [uploadStatus, setUploadStatus] = useState("");
   const [isUploadingReport, setIsUploadingReport] = useState(false);
   const [metrics, setMetrics] = useState<RuntimeMetrics | null>(null);
-  const [smoothedLauncherCpu, setSmoothedLauncherCpu] = useState<number | null>(null);
-  const [smoothedGameCpu, setSmoothedGameCpu] = useState<number | null>(null);
   const [isInstanceMenuOpen, setIsInstanceMenuOpen] = useState(false);
   const loaderLabel = selectedInstance
     ? selectedInstance.loader === "fabric"
@@ -91,27 +89,9 @@ export function DashboardView({
 
 
   useEffect(() => {
-    setSmoothedGameCpu(null);
-  }, [gamePid]);
-
-  useEffect(() => {
     setUploadStatus("");
     setIsUploadingReport(false);
   }, [statusText]);
-
-  useEffect(() => {
-    if (!metrics) return;
-    const smooth = (prev: number | null, next: number, alpha = 0.2) =>
-      prev === null ? next : prev * (1 - alpha) + next * alpha;
-    const launcherCpu = metrics.launcher_cpu_percent;
-    if (typeof launcherCpu === "number") {
-      setSmoothedLauncherCpu((prev) => smooth(prev, launcherCpu));
-    }
-    const processCpu = metrics.process_cpu_percent;
-    if (typeof processCpu === "number") {
-      setSmoothedGameCpu((prev) => smooth(prev, processCpu));
-    }
-  }, [metrics]);
 
   const formatMemory = (mb: number | null | undefined) => {
     if (mb === null || mb === undefined) return "--";
@@ -122,12 +102,6 @@ export function DashboardView({
   const launcherUsed = metrics?.launcher_memory_mb ?? null;
   const launcherReserved = metrics?.launcher_virtual_mb ?? null;
   const gameUsed = metrics?.process_memory_mb ?? null;
-  const gameReserved = metrics?.process_virtual_mb ?? null;
-  const cpuDisplay =
-    gamePid && smoothedGameCpu !== null && smoothedGameCpu !== undefined
-      ? smoothedGameCpu
-      : smoothedLauncherCpu;
-  const cpuText = cpuDisplay !== null && cpuDisplay !== undefined ? `${cpuDisplay.toFixed(1)}%` : "--";
   const ramDisplay = formatMemory(gameUsed ?? launcherUsed ?? null);
   const instanceInitial = selectedInstance?.name?.charAt(0).toUpperCase() || "?";
   const loaderDotClass = selectedInstance
@@ -183,12 +157,6 @@ export function DashboardView({
       <header className="relative z-10 flex justify-end p-6">
         <div className="flex flex-col items-end gap-2">
           <div className="flex gap-4 bg-black/40 backdrop-blur-md border border-white/5 px-4 py-2 rounded-full text-xs font-mono text-gray-300">
-            <div className="flex items-center gap-2">
-              <Cpu size={14} className="text-brand-accent" />
-              <span className="hidden md:inline">CPU: {cpuText}</span>
-              <span className="md:hidden">CPU {cpuText}</span>
-            </div>
-            <div className="w-px h-4 bg-white/10" />
             <div className="flex items-center gap-2">
               <HardDrive size={14} className="text-blue-400" />
               <span className="hidden md:inline">RAM: {ramDisplay}</span>

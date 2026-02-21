@@ -256,6 +256,18 @@ export async function modrinthInstallModpackWithBackup(
   });
 }
 
+export async function importModpackMrpack(
+  name: string | undefined,
+  fileName: string,
+  dataBase64: string
+): Promise<InstanceSummary> {
+  return await invoke("import_modpack_mrpack", { name, fileName, dataBase64 });
+}
+
+export async function exportModpackMrpack(instanceId: string, destPath?: string): Promise<string> {
+  return await invoke("export_modpack_mrpack", { instanceId, destPath });
+}
+
 export async function modrinthInstallDatapack(
   instanceId: string,
   worldId: string,

@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import type { MinecraftProfile, View } from "../types";
 import { IconDownload, IconFolder, IconPlay, IconSearch, IconSettings, IconUser } from "../icons";
+import * as tauri from "../services/tauri";
 
 export function Sidebar({
   currentView,
@@ -17,6 +18,36 @@ export function Sidebar({
   isProcessing: boolean;
   isGameRunning: boolean;
 }) {
+  const [offlineSkinUrl, setOfflineSkinUrl] = useState("");
+  const defaultSteveHead = "https://mc-heads.net/avatar/Steve/64";
+  useEffect(() => {
+    let alive = true;
+    if (!userProfile.is_offline) {
+      setOfflineSkinUrl("");
+      return;
+    }
+    (async () => {
+      try {
+        const skin = await tauri.getActiveSkin();
+        if (alive) setOfflineSkinUrl(skin?.data_url || "");
+      } catch {
+        if (alive) setOfflineSkinUrl("");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [userProfile.is_offline]);
+
+  const skinUrl = userProfile.is_offline ? offlineSkinUrl : userProfile.skin_url || "";
+  const headUrl = skinUrl || defaultSteveHead;
+  const headSize = 40;
+  const headScale = headSize / 8;
+  const textureSize = 64 * headScale;
+  const headX = -8 * headScale;
+  const headY = -8 * headScale;
+  const hatX = -40 * headScale;
+
   return (
     <div
       className={`w-64 bg-gray-900 border-r border-gray-800 flex flex-col justify-between p-4 z-20 shadow-2xl transition ${
@@ -123,15 +154,19 @@ export function Sidebar({
       </div>
 
       <div className="bg-gray-950/50 p-3 rounded-xl border border-gray-800 flex items-center gap-3">
-        <img
-          src={
-            !userProfile.is_offline && userProfile.skin_url
-              ? userProfile.skin_url
-              : `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.name)}&background=random`
-          }
-          className="w-10 h-10 rounded-lg object-cover"
-          alt={`Avatar de ${userProfile.name}`}
-        />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-800 border border-gray-700">
+          <div
+            className="w-full h-full"
+            style={{
+              backgroundImage: `url("${headUrl}"), url("${headUrl}")`,
+              backgroundSize: `${textureSize}px ${textureSize}px, ${textureSize}px ${textureSize}px`,
+              backgroundPosition: `${headX}px ${headY}px, ${hatX}px ${headY}px`,
+              backgroundRepeat: "no-repeat",
+              imageRendering: "pixelated",
+            }}
+            aria-label={`Avatar de ${userProfile.name}`}
+          />
+        </div>
         <div className="flex-1 min-w-0">
           <div className="font-bold text-sm truncate">{userProfile.name}</div>
           <div className="text-xs text-gray-500">{userProfile.is_offline ? "Offline" : "Microsoft"}</div>

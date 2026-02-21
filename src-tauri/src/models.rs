@@ -10,14 +10,11 @@ pub struct ProgressPayload {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RuntimeMetrics {
-    pub cpu_percent: f32,
     pub used_memory_mb: u64,
     pub total_memory_mb: u64,
     pub used_memory_percent: f32,
-    pub launcher_cpu_percent: Option<f32>,
     pub launcher_memory_mb: Option<u64>,
     pub launcher_virtual_mb: Option<u64>,
-    pub process_cpu_percent: Option<f32>,
     pub process_memory_mb: Option<u64>,
     pub process_virtual_mb: Option<u64>,
 }

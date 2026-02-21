@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { InstanceContentItem, InstanceLogEntry, InstanceSummary, LoaderType } from "../types";
 import {
   IconChevronDown,
+  IconDownload,
   IconFolder,
   IconPlay,
   IconPlus,
@@ -11,6 +12,7 @@ import {
 import * as tauri from "../services/tauri";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { Box, Code, Coffee, Wrench, Zap } from "lucide-react";
+import { save } from "@tauri-apps/plugin-dialog";
 
 type CreatePayload = {
   name: string;
@@ -40,6 +42,7 @@ export function InstancesView({
   onDeleteInstance,
   onLoadVersions,
   onConfirm,
+  onRefreshInstances,
   isProcessing,
   isLoading,
   globalStatus,
@@ -55,6 +58,7 @@ export function InstancesView({
   onDeleteInstance: (id: string) => void;
   onLoadVersions: () => void;
   onConfirm: (opts: ConfirmOptions) => Promise<boolean>;
+  onRefreshInstances?: () => void | Promise<void>;
   isProcessing: boolean;
   isLoading?: boolean;
   globalStatus: string;
@@ -62,6 +66,9 @@ export function InstancesView({
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [manageInstance, setManageInstance] = useState<InstanceSummary | null>(null);
+  const [importingModpack, setImportingModpack] = useState(false);
+  const [importStatus, setImportStatus] = useState("");
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -87,6 +94,36 @@ export function InstancesView({
     });
   };
   const showSkeleton = Boolean(isLoading) && instances.length === 0;
+
+  const handleImportModpack = async (file: File) => {
+    setImportStatus("");
+    setImportingModpack(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const raw = String(reader.result || "");
+          const marker = "base64,";
+          const idx = raw.indexOf(marker);
+          resolve(idx >= 0 ? raw.slice(idx + marker.length) : raw);
+        };
+        reader.onerror = () => reject(new Error("Error leyendo el archivo"));
+        reader.readAsDataURL(file);
+      });
+      const name = file.name.replace(/\.mrpack$/i, "").replace(/\.zip$/i, "");
+      const created = await tauri.importModpackMrpack(name, file.name, base64);
+      await onRefreshInstances?.();
+      onSelectInstance(created.id);
+      setImportStatus(`Modpack importado: ${created.name}`);
+    } catch (e: any) {
+      setImportStatus("Error importando modpack: " + String(e));
+    } finally {
+      setImportingModpack(false);
+      if (importInputRef.current) {
+        importInputRef.current.value = "";
+      }
+    }
+  };
 
 return (
   <div className="absolute inset-0 z-20 bg-[#0f0f13] flex flex-col overflow-hidden animate-fadeIn">
@@ -119,10 +156,36 @@ return (
             <IconPlus />
             <span>Nueva instancia</span>
           </button>
+          <button
+            onClick={() => importInputRef.current?.click()}
+            type="button"
+            disabled={isProcessing || importingModpack}
+            aria-disabled={isProcessing || importingModpack}
+            title={importingModpack ? "Importando..." : "Importar modpack (.mrpack)"}
+            className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-gray-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <IconDownload />
+            <span>{importingModpack ? "Importando..." : "Importar modpack"}</span>
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".mrpack,.zip"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                void handleImportModpack(file);
+              }
+            }}
+          />
         </div>
       </div>
       {isProcessing && (
         <div className="mt-3 text-xs text-gray-500">Acciones bloqueadas por tarea en curso.</div>
+      )}
+      {importStatus && (
+        <div className="mt-3 text-xs text-gray-400">{importStatus}</div>
       )}
     </div>
 
@@ -370,6 +433,11 @@ function ManageInstanceModal({
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [repairing, setRepairing] = useState(false);
+  const [exportingPack, setExportingPack] = useState(false);
+  const [contentQuery, setContentQuery] = useState("");
+  const [sortMode, setSortMode] = useState<"recent" | "name" | "size">("recent");
+  const [filterSource, setFilterSource] = useState<"all" | "modrinth" | "local">("all");
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [counts, setCounts] = useState({
     mods: 0,
     resourcepacks: 0,
@@ -422,6 +490,32 @@ function ManageInstanceModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, instance.id]);
 
+  useEffect(() => {
+    setContentQuery("");
+    setFilterSource("all");
+    setSortMode("recent");
+  }, [tab, instance.id]);
+
+  const filteredItems = useMemo(() => {
+    let list = items.slice();
+    const q = contentQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter((item) => item.name.toLowerCase().includes(q));
+    }
+    if (filterSource === "modrinth") {
+      list = list.filter((item) => item.source === "modrinth");
+    }
+    if (filterSource === "local") {
+      list = list.filter((item) => !item.source);
+    }
+    if (sortMode === "name") {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortMode === "size") {
+      list.sort((a, b) => b.size - a.size);
+    }
+    return list;
+  }, [items, contentQuery, filterSource, sortMode]);
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -467,6 +561,51 @@ function ManageInstanceModal({
       await loadContent();
     } catch (e: any) {
       setStatus({ message: String(e), kind: "error" });
+    }
+  };
+
+  const handleBulkToggle = async (enabled: boolean) => {
+    if (tab === "logs") return;
+    setBulkBusy(true);
+    setStatus(null);
+    try {
+      const targets = filteredItems.filter((item) => item.enabled !== enabled);
+      for (const item of targets) {
+        await tauri.toggleInstanceContent(instance.id, tab, item.file_name, enabled);
+      }
+      await loadContent();
+      setStatus({
+        message: enabled
+          ? "Todos los elementos visibles fueron activados."
+          : "Todos los elementos visibles fueron desactivados.",
+        kind: "success",
+      });
+    } catch (e: any) {
+      setStatus({ message: String(e), kind: "error" });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleExportModpack = async () => {
+    setExportingPack(true);
+    setStatus(null);
+    try {
+      const selected = await save({
+        title: "Guardar modpack",
+        defaultPath: `${instance.name}.mrpack`,
+        filters: [{ name: "Modrinth Pack", extensions: ["mrpack"] }],
+      });
+      if (!selected) {
+        setExportingPack(false);
+        return;
+      }
+      const path = await tauri.exportModpackMrpack(instance.id, selected);
+      setStatus({ message: `Modpack exportado: ${path}`, kind: "success" });
+    } catch (e: any) {
+      setStatus({ message: "Error exportando modpack: " + String(e), kind: "error" });
+    } finally {
+      setExportingPack(false);
     }
   };
 
@@ -696,6 +835,15 @@ function ManageInstanceModal({
                 </button>
                 <button
                   type="button"
+                  onClick={handleExportModpack}
+                  disabled={exportingPack}
+                  aria-disabled={exportingPack}
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-60"
+                >
+                  {exportingPack ? "Exportando..." : "Exportar modpack"}
+                </button>
+                <button
+                  type="button"
                   onClick={handleDeleteInstance}
                   className="w-full px-3 py-2 rounded-lg bg-red-600/20 text-red-200 hover:bg-red-600/30"
                 >
@@ -728,6 +876,48 @@ function ManageInstanceModal({
 
                   {!loading && tab !== "logs" && (
                     <div className="h-full overflow-y-auto pr-2 custom-scrollbar">
+                      <div className="mb-4 flex flex-wrap gap-2 items-center">
+                        <input
+                          value={contentQuery}
+                          onChange={(e) => setContentQuery(e.target.value)}
+                          placeholder={`Buscar ${tab}...`}
+                          className="flex-1 min-w-[180px] bg-[#1a1a1f] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-accent/60"
+                        />
+                        <select
+                          value={sortMode}
+                          onChange={(e) => setSortMode(e.target.value as "recent" | "name" | "size")}
+                          className="bg-[#1a1a1f] border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200"
+                        >
+                          <option value="recent">Recientes</option>
+                          <option value="name">Nombre</option>
+                          <option value="size">Peso</option>
+                        </select>
+                        <select
+                          value={filterSource}
+                          onChange={(e) => setFilterSource(e.target.value as "all" | "modrinth" | "local")}
+                          className="bg-[#1a1a1f] border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200"
+                        >
+                          <option value="all">Todos</option>
+                          <option value="modrinth">Modrinth</option>
+                          <option value="local">Local</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handleBulkToggle(true)}
+                          disabled={bulkBusy || filteredItems.length === 0}
+                          className="px-3 py-2 rounded-lg bg-gray-800 text-gray-200 hover:bg-gray-700 text-xs disabled:opacity-60"
+                        >
+                          Activar todo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleBulkToggle(false)}
+                          disabled={bulkBusy || filteredItems.length === 0}
+                          className="px-3 py-2 rounded-lg bg-gray-800 text-gray-200 hover:bg-gray-700 text-xs disabled:opacity-60"
+                        >
+                          Desactivar todo
+                        </button>
+                      </div>
                       {tab === "mods" && !isModpack && (
                         <div className="mb-4 bg-gradient-to-br from-brand-accent/10 via-gray-950/40 to-gray-950/40 border border-brand-accent/30 rounded-xl p-4">
                           <div className="flex items-center gap-3 mb-2">
@@ -819,13 +1009,13 @@ function ManageInstanceModal({
                           )}
                         </div>
                       )}
-                      {items.length === 0 && (
+                      {filteredItems.length === 0 && (
                         <div className="text-gray-500 text-center py-10">
                           No hay archivos en esta sección.
                         </div>
                       )}
                       <div className="space-y-3">
-                        {items.map((item) => (
+                        {filteredItems.map((item) => (
                           <div
                             key={item.file_name}
                             className="border border-gray-800 rounded-xl p-4 bg-gray-950/40 flex items-start gap-4"

@@ -36,60 +36,51 @@ pub fn get_runtime_metrics_impl(pid: Option<u32>) -> Result<RuntimeMetrics, Stri
     let launcher_pid = std::process::id();
     let mut sys = System::new();
     sys.refresh_memory();
-    sys.refresh_cpu();
     sys.refresh_processes();
-    std::thread::sleep(std::time::Duration::from_millis(200));
-    sys.refresh_cpu();
     sys.refresh_processes();
 
     let total_memory_mb = sys.total_memory() / 1024 / 1024;
     let used_memory_mb = sys.used_memory() / 1024 / 1024;
-    let cpu_percent = sys.global_cpu_info().cpu_usage();
     let used_memory_percent = if total_memory_mb == 0 {
         0.0
     } else {
         (used_memory_mb as f32 / total_memory_mb as f32) * 100.0
     };
 
-    let (launcher_cpu_percent, launcher_memory_mb, launcher_virtual_mb) = {
+    let (launcher_memory_mb, launcher_virtual_mb) = {
         let pid = Pid::from_u32(launcher_pid);
         if let Some(proc) = sys.process(pid) {
             let private_mb = get_private_memory_mb(launcher_pid);
             (
-                Some(proc.cpu_usage()),
                 private_mb.or_else(|| Some(proc.memory() / 1024 / 1024)),
                 Some(proc.virtual_memory() / 1024 / 1024),
             )
         } else {
-            (None, None, None)
+            (None, None)
         }
     };
 
-    let (process_cpu_percent, process_memory_mb, process_virtual_mb) = if let Some(pid_value) = pid
+    let (process_memory_mb, process_virtual_mb) = if let Some(pid_value) = pid
     {
         let pid = Pid::from_u32(pid_value);
         if let Some(proc) = sys.process(pid) {
             let proc_mem =
                 get_private_memory_mb(pid_value).unwrap_or_else(|| proc.memory() / 1024 / 1024);
             let proc_virt = proc.virtual_memory() / 1024 / 1024;
-            let proc_cpu = proc.cpu_usage();
-            (Some(proc_cpu), Some(proc_mem), Some(proc_virt))
+            (Some(proc_mem), Some(proc_virt))
         } else {
-            (None, None, None)
+            (None, None)
         }
     } else {
-        (None, None, None)
+        (None, None)
     };
 
     Ok(RuntimeMetrics {
-        cpu_percent,
         used_memory_mb,
         total_memory_mb,
         used_memory_percent,
-        launcher_cpu_percent,
         launcher_memory_mb,
         launcher_virtual_mb,
-        process_cpu_percent,
         process_memory_mb,
         process_virtual_mb,
     })

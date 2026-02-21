@@ -439,6 +439,7 @@ export default function App() {
             onDeleteInstance={deleteInstance}
             onLoadVersions={loadMojangVersions}
             onConfirm={askConfirm}
+            onRefreshInstances={refreshInstances}
             isProcessing={isProcessing}
             isLoading={instancesLoading}
             globalStatus={globalStatus}

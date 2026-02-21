@@ -88,14 +88,11 @@ export interface InstanceLogEntry {
 }
 
 export interface RuntimeMetrics {
-  cpu_percent: number;
   used_memory_mb: number;
   total_memory_mb: number;
   used_memory_percent: number;
-  launcher_cpu_percent?: number | null;
   launcher_memory_mb?: number | null;
   launcher_virtual_mb?: number | null;
-  process_cpu_percent?: number | null;
   process_memory_mb?: number | null;
   process_virtual_mb?: number | null;
 }
