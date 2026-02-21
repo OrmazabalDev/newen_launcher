@@ -21,24 +21,47 @@ export interface DiscordPresenceApi {
  */
 export function useLauncherPresence(api: DiscordPresenceApi): {
   setLauncherPresence: (state: string) => Promise<void>;
+  setGamePresence: (details?: string) => Promise<void>;
   clearLauncherPresence: () => Promise<void>;
 } {
   const discordReadyRef = useRef(false);
 
+  const ensureDiscordReady = useCallback(async () => {
+    if (!discordReadyRef.current) {
+      await api.discordInit();
+      discordReadyRef.current = true;
+    }
+  }, [api]);
+
   const setLauncherPresence = useCallback(
     async (state: string) => {
       try {
-        if (!discordReadyRef.current) {
-          await api.discordInit();
-          discordReadyRef.current = true;
-        }
+        await ensureDiscordReady();
         const startTimestamp = Math.floor(Date.now() / 1000);
         await api.discordSetActivity(state, "Launcher de Minecraft / Version 1.0 Atacama", startTimestamp, true);
       } catch {
         // Errores de Discord no deben romper el launcher.
       }
     },
-    [api]
+    [api, ensureDiscordReady]
+  );
+
+  const setGamePresence = useCallback(
+    async (details?: string) => {
+      try {
+        await ensureDiscordReady();
+        const startTimestamp = Math.floor(Date.now() / 1000);
+        await api.discordSetActivity(
+          "Desde Newen Launcher",
+          details || "Jugando Minecraft",
+          startTimestamp,
+          true
+        );
+      } catch {
+        // Errores de Discord no deben romper el launcher.
+      }
+    },
+    [api, ensureDiscordReady]
   );
 
   const clearLauncherPresence = useCallback(async () => {
@@ -49,5 +72,5 @@ export function useLauncherPresence(api: DiscordPresenceApi): {
     }
   }, [api]);
 
-  return { setLauncherPresence, clearLauncherPresence };
+  return { setLauncherPresence, setGamePresence, clearLauncherPresence };
 }

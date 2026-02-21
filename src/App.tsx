@@ -64,7 +64,7 @@ export default function App() {
   // UI helpers.
   const { toast, showToast } = useToast();
   const { confirmState, askConfirm, resolveConfirm } = useConfirm();
-  const { setLauncherPresence, clearLauncherPresence } = useLauncherPresence(tauri);
+  const { setLauncherPresence, setGamePresence, clearLauncherPresence } = useLauncherPresence(tauri);
   const [authError, setAuthError] = useState("");
 
   const {
@@ -182,7 +182,7 @@ export default function App() {
     {
       onGameStart: (pid) => {
         setGamePid(pid ?? null);
-        void clearLauncherPresence();
+        void setGamePresence();
       },
       onGameExit: () => {
         setGamePid(null);
