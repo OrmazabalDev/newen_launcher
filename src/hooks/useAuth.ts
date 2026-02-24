@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { AuthMode, MinecraftProfile } from "../types";
 
 export interface AuthApi {
@@ -68,7 +68,7 @@ export function useAuth(options: UseAuthOptions): UseAuthResult {
           setUserProfile(parsed);
           setAuthMode("microsoft");
         }
-      } catch (err: any) {
+      } catch (err) {
         setUserProfile(null);
         setAuthError("No se pudo restaurar sesion: " + String(err));
         onAuthError("No se pudo restaurar sesion: " + String(err));
@@ -88,7 +88,7 @@ export function useAuth(options: UseAuthOptions): UseAuthResult {
       const parsed = JSON.parse(res) as MinecraftProfile;
       setUserProfile(parsed);
       setAuthMode("offline");
-    } catch (err: any) {
+    } catch (err) {
       setAuthError(String(err));
     }
   }, [api, offlineUsername]);

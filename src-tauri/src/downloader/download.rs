@@ -1,4 +1,5 @@
-﻿use crate::utils::create_client;
+use crate::error::AppResult;
+use crate::utils::create_client;
 use futures_util::StreamExt;
 use sha1::{Digest, Sha1};
 use std::path::{Path, PathBuf};
@@ -16,14 +17,17 @@ pub struct DownloadSpec {
     pub size: Option<u64>,
 }
 
-async fn sha1_file(path: &PathBuf) -> Result<String, String> {
+async fn sha1_file(path: &Path) -> AppResult<String> {
     let mut file = tokio_fs::File::open(path)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let mut hasher = Sha1::new();
     let mut buf = vec![0u8; 8192];
     loop {
-        let n = file.read(&mut buf).await.map_err(|e| e.to_string())?;
+        let n = file
+            .read(&mut buf)
+            .await
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         if n == 0 {
             break;
         }
@@ -33,11 +37,11 @@ async fn sha1_file(path: &PathBuf) -> Result<String, String> {
 }
 
 pub async fn is_valid_file(
-    path: &PathBuf,
+    path: &Path,
     expected_size: Option<u64>,
     expected_sha1: Option<&str>,
     verify_sha1: bool,
-) -> Result<bool, String> {
+) -> AppResult<bool> {
     if let Some(size) = expected_size {
         if let Ok(meta) = tokio_fs::metadata(path).await {
             if meta.len() != size {
@@ -59,11 +63,11 @@ pub async fn is_valid_file(
 }
 
 pub async fn should_download_file(
-    path: &PathBuf,
+    path: &Path,
     expected_size: Option<u64>,
     expected_sha1: Option<&str>,
     verify_sha1_existing: bool,
-) -> Result<bool, String> {
+) -> AppResult<bool> {
     if path.exists() {
         let ok = is_valid_file(path, expected_size, expected_sha1, verify_sha1_existing).await?;
         if ok {
@@ -80,11 +84,11 @@ fn set_last_err(slot: &mut Option<String>, msg: String) {
     }
 }
 
-pub async fn download_url_to_path(url: &str, dest: &PathBuf) -> Result<(), String> {
+pub async fn download_url_to_path(url: &str, dest: &Path) -> AppResult<()> {
     if let Some(parent) = dest.parent() {
         tokio_fs::create_dir_all(parent)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     }
     let tmp_path = dest.with_extension("tmp");
     let client = create_client();
@@ -92,22 +96,22 @@ pub async fn download_url_to_path(url: &str, dest: &PathBuf) -> Result<(), Strin
         .get(url)
         .send()
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?
         .error_for_status()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let mut file = tokio_fs::File::create(&tmp_path)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| e.to_string())?;
-        file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        let chunk = chunk.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+        file.write_all(&chunk).await.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     }
     let _ = file.flush().await;
     let _ = tokio_fs::remove_file(dest).await;
     tokio_fs::rename(&tmp_path, dest)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
@@ -115,13 +119,13 @@ pub async fn download_with_retry(
     client: Arc<reqwest::Client>,
     spec: DownloadSpec,
     retries: usize,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let mut last_err: Option<String> = None;
     for _ in 0..=retries {
         if let Some(parent) = spec.path.parent() {
             tokio_fs::create_dir_all(parent)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         }
         let tmp_path = spec.path.with_extension("tmp");
         let resp = client.get(&spec.url).send().await;
@@ -163,15 +167,10 @@ pub async fn download_with_retry(
         }
         let _ = file.flush().await;
 
-        if let Err(e) = is_valid_file(
-            &tmp_path,
-            spec.size,
-            spec.sha1.as_deref(),
-            spec.sha1.is_some(),
-        )
-        .await
+        if let Err(e) =
+            is_valid_file(&tmp_path, spec.size, spec.sha1.as_deref(), spec.sha1.is_some()).await
         {
-            set_last_err(&mut last_err, e);
+            set_last_err(&mut last_err, e.to_string());
             let _ = tokio_fs::remove_file(&tmp_path).await;
             continue;
         }
@@ -186,7 +185,7 @@ pub async fn download_with_retry(
         return Ok(());
     }
 
-    Err(last_err.unwrap_or_else(|| "Descarga fallida".to_string()))
+    Err(last_err.unwrap_or_else(|| "Descarga fallida".to_string()).into())
 }
 
 pub async fn download_file_checked(
@@ -194,7 +193,7 @@ pub async fn download_file_checked(
     dest: &Path,
     expected_size: u64,
     expected_sha1: Option<&str>,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let path = dest.to_path_buf();
     if !should_download_file(&path, Some(expected_size), expected_sha1, true).await? {
         return Ok(());

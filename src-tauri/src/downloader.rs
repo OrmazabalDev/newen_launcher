@@ -1,4 +1,5 @@
-﻿use crate::models::ProgressPayload;
+use crate::error::AppResult;
+use crate::models::ProgressPayload;
 use crate::utils::create_client;
 use download::{download_with_retry, DownloadSpec};
 use futures_util::stream;
@@ -10,15 +11,15 @@ const LIB_CONCURRENCY: usize = 12;
 const ASSET_CONCURRENCY: usize = 12;
 const DOWNLOAD_RETRIES: usize = 2;
 
-mod http_cache;
+mod assets;
 mod download;
+mod http_cache;
+mod java;
 mod libraries;
 mod versions;
-mod assets;
-mod java;
 
-pub use http_cache::fetch_text_with_cache;
 pub use download::download_file_checked;
+pub use http_cache::fetch_text_with_cache;
 
 async fn download_specs_concurrent(
     app: Option<&AppHandle>,
@@ -28,15 +29,12 @@ async fn download_specs_concurrent(
     base: f64,
     span: f64,
     step: usize,
-) -> Result<(), String> {
+) -> AppResult<()> {
     if specs.is_empty() {
         if let Some(app) = app {
             let _ = app.emit(
                 "download-progress",
-                ProgressPayload {
-                    task: format!("{} 0/0", label),
-                    percent: base + span,
-                },
+                ProgressPayload { task: format!("{} 0/0", label), percent: base + span },
             );
         }
         return Ok(());
@@ -59,14 +57,11 @@ async fn download_specs_concurrent(
 
         done += 1;
         if let Some(app) = app {
-            if done == total || done % step == 0 {
+            if done == total || done.is_multiple_of(step) {
                 let percent = base + (done as f64 / total as f64) * span;
                 let _ = app.emit(
                     "download-progress",
-                    ProgressPayload {
-                        task: format!("{} {}/{}", label, done, total),
-                        percent,
-                    },
+                    ProgressPayload { task: format!("{} {}/{}", label, done, total), percent },
                 );
             }
         }
@@ -74,8 +69,7 @@ async fn download_specs_concurrent(
 
     Ok(())
 }
-pub use libraries::{download_libraries_concurrent, download_libraries_for_version_impl};
-pub use versions::{download_client_impl, get_version_metadata_impl, get_versions_impl};
 pub use assets::download_game_files_impl;
 pub use java::download_java_impl;
-
+pub use libraries::{download_libraries_concurrent, download_libraries_for_version_impl};
+pub use versions::{download_client_impl, get_version_metadata_impl, get_versions_impl};

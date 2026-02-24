@@ -1,5 +1,14 @@
-import React, { useId, useRef } from "react";
+﻿import { useId, useRef } from "react";
 import { useModalFocus } from "../hooks/useModalFocus";
+import { cn } from "../utils/cn";
+import {
+  modalBackdrop,
+  modalBody,
+  modalCard,
+  modalPrimaryButton,
+  modalSecondaryButton,
+  modalTitle,
+} from "./modalStyles";
 
 type UpdateModalProps = {
   open: boolean;
@@ -41,21 +50,17 @@ export function UpdateModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-950/90 backdrop-blur-sm animate-fadeIn p-4"
+      className={modalBackdrop()}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={summaryId}
     >
-      <div
-        ref={dialogRef}
-        className="bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-700 max-w-lg w-full"
-        tabIndex={-1}
-      >
-        <h3 className="text-xl font-bold text-white mb-2" id={titleId}>
+      <div ref={dialogRef} className={modalCard({ size: "md" })} tabIndex={-1}>
+        <h3 className={modalTitle()} id={titleId}>
           Actualización disponible
         </h3>
-        <div className="text-sm text-gray-300 space-y-2" id={summaryId}>
+        <div className={cn(modalBody(), "space-y-2")} id={summaryId}>
           <div>
             Versión nueva: <span className="text-white font-semibold">{version}</span>
           </div>
@@ -73,9 +78,10 @@ export function UpdateModal({
             type="button"
             disabled={isDownloading}
             ref={updateRef}
-            className={`w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-              isDownloading ? "bg-brand-accent/60 cursor-not-allowed" : "bg-brand-accent hover:bg-brand-accent-deep"
-            }`}
+            className={cn(
+              modalPrimaryButton({ tone: "accent" }),
+              isDownloading && "bg-brand-accent/60 hover:bg-brand-accent/60"
+            )}
           >
             {isDownloading && (
               <span className="inline-block h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" />
@@ -86,7 +92,7 @@ export function UpdateModal({
             onClick={onLater}
             type="button"
             disabled={isDownloading}
-            className="w-full py-3 bg-gray-800 rounded-xl text-gray-300 disabled:opacity-60 transition hover:bg-gray-700"
+            className={modalSecondaryButton()}
           >
             Actualizar más tarde
           </button>

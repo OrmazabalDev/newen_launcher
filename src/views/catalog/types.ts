@@ -1,23 +1,16 @@
 import type { InstanceSummary } from "../../types";
+import type { ConfirmOptions } from "../../hooks/useConfirm";
 import type { ProjectType, SourceType } from "./constants";
-
-export type ConfirmOptions = {
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  danger?: boolean;
-};
 
 export type CatalogViewProps = {
   instances: InstanceSummary[];
   selectedInstanceId: string;
   onSelectInstance: (id: string) => void;
-  onGoInstances?: () => void;
+  onGoInstances: () => void;
   onGoPlay?: () => void;
-  onRefreshInstances?: () => void | Promise<void>;
+  onRefreshInstances: () => void | Promise<void>;
   onConfirm: (opts: ConfirmOptions) => Promise<boolean>;
-  progressLabel?: string;
+  progressLabel: string;
   initialProjectType?: ProjectType;
   lockedProjectType?: ProjectType;
   title?: string;
@@ -25,3 +18,5 @@ export type CatalogViewProps = {
   lockSource?: SourceType;
   hiddenProjectTypes?: ProjectType[];
 };
+
+export type { ConfirmOptions } from "../../hooks/useConfirm";

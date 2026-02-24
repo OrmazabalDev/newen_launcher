@@ -1,12 +1,13 @@
-﻿use crate::models::GameSettings;
-use std::path::PathBuf;
+use crate::error::AppResult;
+use crate::models::GameSettings;
+use std::path::Path;
 use tokio::fs as tokio_fs;
 
 pub(crate) async fn apply_options_settings(
-    game_dir: &PathBuf,
+    game_dir: &Path,
     settings: &GameSettings,
     skin_pack: Option<&str>,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let options_path = game_dir.join("options.txt");
     let mut lines: Vec<String> = Vec::new();
     if let Ok(raw) = tokio_fs::read_to_string(&options_path).await {
@@ -82,6 +83,6 @@ pub(crate) async fn apply_options_settings(
     let text = lines.join("\n");
     tokio_fs::write(&options_path, text)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }

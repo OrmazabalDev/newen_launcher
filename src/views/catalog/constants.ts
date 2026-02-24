@@ -1,4 +1,4 @@
-﻿import { defaultSchema } from "rehype-sanitize";
+import { defaultSchema } from "rehype-sanitize";
 
 export const PROJECT_TYPES = [
   { id: "mod", label: "Mods" },
@@ -11,7 +11,10 @@ export const PROJECT_TYPES = [
 export type ProjectType = (typeof PROJECT_TYPES)[number]["id"];
 export type SourceType = "modrinth" | "curseforge";
 
-export const CONTENT_KIND_BY_TYPE: Record<ProjectType, "mods" | "resourcepacks" | "shaderpacks" | null> = {
+export const CONTENT_KIND_BY_TYPE: Record<
+  ProjectType,
+  "mods" | "resourcepacks" | "shaderpacks" | null
+> = {
   mod: "mods",
   resourcepack: "resourcepacks",
   shader: "shaderpacks",
@@ -50,15 +53,9 @@ export const CATEGORY_OPTIONS = [
   { id: "worldgen", label: "World Generation" },
 ] as const;
 
-export const MODRINTH_SANITIZE_SCHEMA: any = {
+export const MODRINTH_SANITIZE_SCHEMA = {
   ...defaultSchema,
-  tagNames: [
-    ...(defaultSchema.tagNames || []),
-    "img",
-    "iframe",
-    "center",
-    "font",
-  ],
+  tagNames: [...(defaultSchema.tagNames || []), "img", "iframe", "center", "font"],
   attributes: {
     ...defaultSchema.attributes,
     a: [...((defaultSchema.attributes || {}).a || []), "title", "target", "rel"],

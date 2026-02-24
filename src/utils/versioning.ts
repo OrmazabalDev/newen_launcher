@@ -14,10 +14,10 @@ export function inferVersionType(id: string): "release" | "snapshot" {
  */
 export function extractBaseVersion(versionId: string): string {
   if (versionId.includes("-forge-")) {
-    return versionId.split("-forge-")[0];
+    return versionId.split("-forge-")[0] || versionId;
   }
   if (versionId.includes("-neoforge-")) {
-    return versionId.split("-neoforge-")[0];
+    return versionId.split("-neoforge-")[0] || versionId;
   }
   if (versionId.startsWith("neoforge-")) {
     const token = versionId.split("-")[1] || "";

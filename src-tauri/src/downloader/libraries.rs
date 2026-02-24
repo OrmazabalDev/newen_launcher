@@ -1,15 +1,18 @@
-﻿use crate::models::{Library, ProgressPayload};
-use crate::utils::{get_launcher_dir, library_artifact_url, maven_artifact_path, should_download_lib};
 use super::download::{should_download_file, DownloadSpec};
 use super::versions::load_version_json_from_disk;
+use crate::error::AppResult;
+use crate::models::{Library, ProgressPayload};
+use crate::utils::{
+    get_launcher_dir, library_artifact_url, maven_artifact_path, should_download_lib,
+};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::Path;
 use tauri::{AppHandle, Emitter};
 
 pub(crate) async fn build_library_specs(
     libraries: &[Library],
-    lib_dir: &PathBuf,
-) -> Result<Vec<DownloadSpec>, String> {
+    lib_dir: &Path,
+) -> AppResult<Vec<DownloadSpec>> {
     let os_key = match std::env::consts::OS {
         "windows" => "windows",
         "linux" => "linux",
@@ -64,12 +67,7 @@ pub(crate) async fn build_library_specs(
                     let sha1 = lib.sha1.clone();
                     let size = lib.size;
                     if should_download_file(&path, size, sha1.as_deref(), true).await? {
-                        specs.push(DownloadSpec {
-                            url,
-                            path,
-                            sha1,
-                            size,
-                        });
+                        specs.push(DownloadSpec { url, path, sha1, size });
                     }
                 }
             }
@@ -79,10 +77,7 @@ pub(crate) async fn build_library_specs(
     Ok(specs)
 }
 
-pub async fn download_libraries_concurrent(
-    libraries: &[Library],
-    lib_dir: &PathBuf,
-) -> Result<(), String> {
+pub async fn download_libraries_concurrent(libraries: &[Library], lib_dir: &Path) -> AppResult<()> {
     let specs = build_library_specs(libraries, lib_dir).await?;
     super::download_specs_concurrent(
         None,
@@ -100,13 +95,13 @@ pub(crate) async fn resolve_version_libraries(
     app: &AppHandle,
     version_id: &str,
     visited: &mut HashSet<String>,
-) -> Result<Vec<Library>, String> {
+) -> AppResult<Vec<Library>> {
     let mut libs: Vec<Library> = Vec::new();
     let mut stack: Vec<String> = vec![version_id.to_string()];
 
     while let Some(current) = stack.pop() {
         if !visited.insert(current.clone()) {
-            return Err("Ciclo detectado en inheritsFrom".to_string());
+            return Err("Ciclo detectado en inheritsFrom".to_string().into());
         }
         let v = load_version_json_from_disk(app, &current).await?;
         if let Some(parent) = v.inherits_from.as_deref() {
@@ -125,16 +120,13 @@ pub(crate) async fn resolve_version_libraries(
 pub async fn download_libraries_for_version_impl(
     app: &AppHandle,
     version_id: String,
-) -> Result<String, String> {
+) -> AppResult<String> {
     let mut visited = HashSet::new();
     let libraries = resolve_version_libraries(app, &version_id, &mut visited).await?;
     let lib_dir = get_launcher_dir(app).join("libraries");
     let _ = app.emit(
         "download-progress",
-        ProgressPayload {
-            task: "Verificando librerias...".to_string(),
-            percent: 0.0,
-        },
+        ProgressPayload { task: "Verificando librerias...".to_string(), percent: 0.0 },
     );
     download_libraries_concurrent(&libraries, &lib_dir).await?;
     Ok("Librerias verificadas".to_string())

@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use tauri::AppHandle;
 use zip::write::FileOptions;
 
+use crate::error::AppResult;
 #[derive(Serialize)]
 struct DiagnosticInfo {
     timestamp: String,
@@ -24,14 +25,15 @@ fn add_file_to_zip(
     file_path: &std::path::Path,
     zip_name: &str,
     options: FileOptions,
-) -> Result<(), String> {
+) -> AppResult<()> {
     if !file_path.exists() || !file_path.is_file() {
         return Ok(());
     }
     zip.start_file(zip_name, options)
-        .map_err(|e| e.to_string())?;
-    let mut f = fs::File::open(file_path).map_err(|e| e.to_string())?;
-    std::io::copy(&mut f, zip).map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    let mut f =
+        fs::File::open(file_path).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    std::io::copy(&mut f, zip).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
@@ -41,21 +43,19 @@ fn add_dir_recursive(
     dir: &std::path::Path,
     prefix: &str,
     options: FileOptions,
-) -> Result<(), String> {
-    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
+) -> AppResult<()> {
+    for entry in fs::read_dir(dir).map_err(|e| crate::error::AppError::Message(e.to_string()))? {
+        let entry = entry.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         let path = entry.path();
-        let rel = path.strip_prefix(base).map_err(|e| e.to_string())?;
+        let rel =
+            path.strip_prefix(base).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         let rel_name = rel.to_string_lossy().replace('\\', "/");
-        let zip_name = if prefix.is_empty() {
-            rel_name
-        } else {
-            format!("{}/{}", prefix, rel_name)
-        };
+        let zip_name =
+            if prefix.is_empty() { rel_name } else { format!("{}/{}", prefix, rel_name) };
 
         if path.is_dir() {
             zip.add_directory(format!("{}/", zip_name), options)
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
             add_dir_recursive(zip, base, &path, prefix, options)?;
         } else {
             add_file_to_zip(zip, &path, &zip_name, options)?;
@@ -64,14 +64,13 @@ fn add_dir_recursive(
     Ok(())
 }
 
-fn support_endpoint() -> Result<String, String> {
+fn support_endpoint() -> AppResult<String> {
     let endpoint = std::env::var("NEWEN_SUPPORT_ENDPOINT").unwrap_or_default();
     let trimmed = endpoint.trim().to_string();
     if trimmed.is_empty() {
-        return Err(
-            "Soporte no configurado. Define NEWEN_SUPPORT_ENDPOINT para habilitar subida."
-                .to_string(),
-        );
+        return Err("Soporte no configurado. Define NEWEN_SUPPORT_ENDPOINT para habilitar subida."
+            .to_string()
+            .into());
     }
     Ok(trimmed)
 }
@@ -109,14 +108,14 @@ async fn resolve_report_path(
     app: &AppHandle,
     report_path: Option<String>,
     instance_id: Option<String>,
-) -> Result<PathBuf, String> {
+) -> AppResult<PathBuf> {
     if let Some(path) = report_path {
         let candidate = PathBuf::from(path);
         if candidate.extension().and_then(|s| s.to_str()) != Some("zip") {
-            return Err("El reporte debe ser un archivo .zip".to_string());
+            return Err("El reporte debe ser un archivo .zip".to_string().into());
         }
         if !candidate.exists() {
-            return Err("El reporte no existe".to_string());
+            return Err("El reporte no existe".to_string().into());
         }
         return Ok(candidate);
     }
@@ -130,10 +129,10 @@ async fn resolve_report_path(
     Ok(PathBuf::from(path))
 }
 
-pub async fn generate_diagnostic_report_impl(app: &AppHandle) -> Result<String, String> {
+pub async fn generate_diagnostic_report_impl(app: &AppHandle) -> AppResult<String> {
     let base = get_launcher_dir(app);
     let reports_dir = base.join("reports");
-    fs::create_dir_all(&reports_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&reports_dir).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S").to_string();
     let zip_path = reports_dir.join(format!("diagnostic_{}.zip", timestamp));
@@ -141,9 +140,7 @@ pub async fn generate_diagnostic_report_impl(app: &AppHandle) -> Result<String, 
     let instances_file = base.join("instances.json");
     let instance_count = if instances_file.exists() {
         if let Ok(raw) = fs::read_to_string(&instances_file) {
-            serde_json::from_str::<Vec<serde_json::Value>>(&raw)
-                .map(|v| v.len())
-                .unwrap_or(0)
+            serde_json::from_str::<Vec<serde_json::Value>>(&raw).map(|v| v.len()).unwrap_or(0)
         } else {
             0
         }
@@ -161,14 +158,16 @@ pub async fn generate_diagnostic_report_impl(app: &AppHandle) -> Result<String, 
         instance_id: None,
     };
 
-    let file = fs::File::create(&zip_path).map_err(|e| e.to_string())?;
+    let file =
+        fs::File::create(&zip_path).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-    let json = serde_json::to_string_pretty(&info).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&info)
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     zip.start_file("diagnostic.json", options)
-        .map_err(|e| e.to_string())?;
-    zip.write_all(json.as_bytes()).map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    zip.write_all(json.as_bytes()).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     add_file_to_zip(&mut zip, &instances_file, "instances.json", options)?;
 
@@ -177,27 +176,25 @@ pub async fn generate_diagnostic_report_impl(app: &AppHandle) -> Result<String, 
         add_dir_recursive(&mut zip, &logs_dir, &logs_dir, "logs", options)?;
     }
 
-    zip.finish().map_err(|e| e.to_string())?;
-    let _ = append_action_log(
-        app,
-        &format!("diagnostic_report path={}", zip_path.to_string_lossy()),
-    )
-    .await;
+    zip.finish().map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    let _ =
+        append_action_log(app, &format!("diagnostic_report path={}", zip_path.to_string_lossy()))
+            .await;
     Ok(zip_path.to_string_lossy().to_string())
 }
 
 pub async fn generate_diagnostic_report_for_instance_impl(
     app: &AppHandle,
     instance_id: String,
-) -> Result<String, String> {
+) -> AppResult<String> {
     let base = get_launcher_dir(app);
     let instance_dir = base.join("instances").join(&instance_id);
     if !instance_dir.exists() {
-        return Err("La instancia no existe".to_string());
+        return Err("La instancia no existe".to_string().into());
     }
 
     let reports_dir = base.join("reports");
-    fs::create_dir_all(&reports_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&reports_dir).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S").to_string();
     let zip_path = reports_dir.join(format!("diagnostic_{}_{}.zip", instance_id, timestamp));
@@ -205,9 +202,7 @@ pub async fn generate_diagnostic_report_for_instance_impl(
     let instances_file = base.join("instances.json");
     let instance_count = if instances_file.exists() {
         if let Ok(raw) = fs::read_to_string(&instances_file) {
-            serde_json::from_str::<Vec<serde_json::Value>>(&raw)
-                .map(|v| v.len())
-                .unwrap_or(0)
+            serde_json::from_str::<Vec<serde_json::Value>>(&raw).map(|v| v.len()).unwrap_or(0)
         } else {
             0
         }
@@ -225,14 +220,16 @@ pub async fn generate_diagnostic_report_for_instance_impl(
         instance_id: Some(instance_id.clone()),
     };
 
-    let file = fs::File::create(&zip_path).map_err(|e| e.to_string())?;
+    let file =
+        fs::File::create(&zip_path).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-    let json = serde_json::to_string_pretty(&info).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&info)
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     zip.start_file("diagnostic.json", options)
-        .map_err(|e| e.to_string())?;
-    zip.write_all(json.as_bytes()).map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    zip.write_all(json.as_bytes()).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     add_file_to_zip(&mut zip, &instances_file, "instances.json", options)?;
 
@@ -263,14 +260,10 @@ pub async fn generate_diagnostic_report_for_instance_impl(
         )?;
     }
 
-    zip.finish().map_err(|e| e.to_string())?;
+    zip.finish().map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let _ = append_action_log(
         app,
-        &format!(
-            "diagnostic_report instance={} path={}",
-            instance_id,
-            zip_path.to_string_lossy()
-        ),
+        &format!("diagnostic_report instance={} path={}", instance_id, zip_path.to_string_lossy()),
     )
     .await;
     Ok(zip_path.to_string_lossy().to_string())
@@ -280,7 +273,7 @@ pub async fn upload_diagnostic_report_impl(
     app: &AppHandle,
     report_path: Option<String>,
     instance_id: Option<String>,
-) -> Result<String, String> {
+) -> AppResult<String> {
     let endpoint = support_endpoint()?;
     let path = if report_path.is_some() {
         resolve_report_path(app, report_path, None).await?
@@ -288,12 +281,9 @@ pub async fn upload_diagnostic_report_impl(
         resolve_report_path(app, None, instance_id.clone()).await?
     };
 
-    let report_bytes = fs::read(&path).map_err(|e| e.to_string())?;
-    let report_name = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("report.zip")
-        .to_string();
+    let report_bytes =
+        fs::read(&path).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    let report_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("report.zip").to_string();
     let file_part = Part::bytes(report_bytes).file_name(report_name);
     let mut form = Form::new()
         .part("report", file_part)
@@ -311,19 +301,15 @@ pub async fn upload_diagnostic_report_impl(
         req = req.bearer_auth(token);
     }
 
-    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let resp = req.send().await.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(format!(
-            "Soporte respondio {}: {}",
-            status.as_u16(),
-            body.trim()
-        ));
+        return Err(format!("Soporte respondio {}: {}", status.as_u16(), body.trim()).into());
     }
 
     let msg = parse_upload_response(&body).unwrap_or_else(|| "Reporte subido.".to_string());
-    let _ = append_action_log(app, &format!("diagnostic_upload path={}", path.to_string_lossy()))
-        .await;
+    let _ =
+        append_action_log(app, &format!("diagnostic_upload path={}", path.to_string_lossy())).await;
     Ok(msg)
 }

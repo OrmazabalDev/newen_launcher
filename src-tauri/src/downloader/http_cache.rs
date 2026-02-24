@@ -1,4 +1,5 @@
-﻿use crate::utils::create_client;
+use crate::error::AppResult;
+use crate::utils::create_client;
 use crate::utils::get_launcher_dir;
 use reqwest::header::{ETAG, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
 use serde::{Deserialize, Serialize};
@@ -45,16 +46,17 @@ async fn load_http_cache_index(path: &Path) -> HttpCacheIndex {
     }
 }
 
-async fn save_http_cache_index(path: &Path, index: &HttpCacheIndex) -> Result<(), String> {
+async fn save_http_cache_index(path: &Path, index: &HttpCacheIndex) -> AppResult<()> {
     if let Some(parent) = path.parent() {
         tokio_fs::create_dir_all(parent)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     }
-    let json = serde_json::to_string_pretty(index).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(index)
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     tokio_fs::write(path, json)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
@@ -63,12 +65,12 @@ pub async fn fetch_text_with_cache(
     url: &str,
     dest_path: Option<PathBuf>,
     force_refresh: bool,
-) -> Result<String, String> {
+) -> AppResult<String> {
     let body_path = dest_path.unwrap_or_else(|| http_cache_body_path(app, url));
     if let Some(parent) = body_path.parent() {
         tokio_fs::create_dir_all(parent)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     }
 
     let index_path = http_cache_index_path(app);
@@ -108,30 +110,22 @@ pub async fn fetch_text_with_cache(
                     if let Ok(text) = tokio_fs::read_to_string(&body_path).await {
                         return Ok(text);
                     }
-                    return Err(format!("HTTP {} al descargar {}", resp.status(), url));
+                    return Err(format!("HTTP {} al descargar {}", resp.status(), url).into());
                 }
 
                 let headers = resp.headers().clone();
-                let text = resp.text().await.map_err(|e| e.to_string())?;
+                let text = resp
+                    .text()
+                    .await
+                    .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
                 tokio_fs::write(&body_path, text.as_bytes())
                     .await
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
-                let etag = headers
-                    .get(ETAG)
-                    .and_then(|v| v.to_str().ok())
-                    .map(|s| s.to_string());
-                let last = headers
-                    .get(LAST_MODIFIED)
-                    .and_then(|v| v.to_str().ok())
-                    .map(|s| s.to_string());
-                index.entries.insert(
-                    url.to_string(),
-                    HttpCacheEntry {
-                        etag,
-                        last_modified: last,
-                    },
-                );
+                let etag = headers.get(ETAG).and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+                let last =
+                    headers.get(LAST_MODIFIED).and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+                index.entries.insert(url.to_string(), HttpCacheEntry { etag, last_modified: last });
                 save_http_cache_index(&index_path, &index).await?;
                 return Ok(text);
             }
@@ -139,10 +133,10 @@ pub async fn fetch_text_with_cache(
                 if let Ok(text) = tokio_fs::read_to_string(&body_path).await {
                     return Ok(text);
                 }
-                return Err(e.to_string());
+                return Err(e.to_string().into());
             }
         }
     }
 
-    Err("Cache invalido y no se pudo refrescar".to_string())
+    Err("Cache invalido y no se pudo refrescar".to_string().into())
 }

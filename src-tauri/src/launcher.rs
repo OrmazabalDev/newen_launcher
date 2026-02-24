@@ -1,11 +1,11 @@
-﻿mod launch;
-mod version;
 mod args;
+mod fs;
 mod java;
-mod natives;
+mod launch;
 mod mods;
+mod natives;
 mod options;
 mod skins;
-mod fs;
+mod version;
 
 pub use launch::launch_game_impl;

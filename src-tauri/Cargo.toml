@@ -27,6 +27,7 @@ futures-util = "0.3"
 sha1 = "0.10"
 once_cell = "1.19"
 discord-rich-presence = "0.2"
+thiserror = "1.0"
 # NUEVA DEPENDENCIA: Para generar UUIDs offline
 uuid = { version = "1.10", features = ["v3", "v4", "serde"] }
 base64 = "0.22"

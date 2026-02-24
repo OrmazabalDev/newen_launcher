@@ -1,10 +1,11 @@
-﻿use crate::downloader::{download_java_impl, get_version_metadata_impl};
+use crate::downloader::{download_java_impl, get_version_metadata_impl};
+use crate::error::AppResult;
 use crate::models::{GameSettings, JavaVersion, VersionManifest, VersionMetadata};
 use crate::utils::{
     detect_os_adoptium, get_launcher_dir, hide_background_window, map_component_to_java_version,
 };
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
 use tauri::AppHandle;
@@ -17,27 +18,21 @@ pub(crate) async fn resolve_required_java_version(
     resolved: &ResolvedVersion,
     manifest_cache: &Mutex<Option<VersionManifest>>,
     metadata_cache: &Mutex<Option<VersionMetadata>>,
-) -> Result<Option<JavaVersion>, String> {
+) -> AppResult<Option<JavaVersion>> {
     let base_version = extract_base_version(version_id);
     let _ = get_version_metadata_impl(app, base_version.clone(), manifest_cache, metadata_cache)
         .await?;
-    let cache = metadata_cache
-        .lock()
-        .map_err(|_| "Error cache".to_string())?;
+    let cache = metadata_cache.lock().map_err(|_| "Error cache".to_string())?;
     let meta_java = cache.as_ref().and_then(|m| m.java_version.clone());
     let inferred = infer_java_version_from_mc(&base_version);
-    Ok(pick_highest_java_version(&[
-        resolved.java_version.clone(),
-        meta_java,
-        inferred,
-    ]))
+    Ok(pick_highest_java_version(&[resolved.java_version.clone(), meta_java, inferred]))
 }
 
 pub(crate) fn resolve_java_binary(
     settings: &GameSettings,
     required: Option<&JavaVersion>,
-    base_dir: &PathBuf,
-) -> Result<String, String> {
+    base_dir: &Path,
+) -> AppResult<String> {
     let candidate = settings.java_path.trim();
     if candidate.is_empty() {
         if let Some(req) = required {
@@ -50,7 +45,8 @@ pub(crate) fn resolve_java_binary(
             return Err(format!(
                 "No se encontro Java portable compatible (requiere Java {}).",
                 req.major_version
-            ));
+            )
+            .into());
         }
         if let Some(portable) = find_best_portable_java(base_dir) {
             return Ok(portable.to_string_lossy().to_string());
@@ -64,7 +60,7 @@ pub(crate) fn resolve_java_binary(
     if path.exists() {
         return Ok(candidate.to_string());
     }
-    Err("Ruta de Java invalida".to_string())
+    Err("Ruta de Java invalida".to_string().into())
 }
 
 pub(crate) async fn ensure_java_runtime(
@@ -74,7 +70,7 @@ pub(crate) async fn ensure_java_runtime(
     manifest_cache: &Mutex<Option<VersionManifest>>,
     metadata_cache: &Mutex<Option<VersionMetadata>>,
     settings: &GameSettings,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let base_dir = get_launcher_dir(app);
     let custom_path = settings.java_path.trim();
     if !custom_path.is_empty() {
@@ -105,14 +101,21 @@ pub(crate) async fn ensure_java_runtime(
                 .await?;
         let _ = download_java_impl(app, Some(base_version), manifest_cache, metadata_cache)
             .await
-            .map_err(|e| format!("No se pudo descargar Java automaticamente: {}", e))?;
+            .map_err(|e| {
+            crate::error::AppError::Message(format!(
+                "No se pudo descargar Java automaticamente: {}",
+                e
+            ))
+        })?;
 
         if find_portable_java(&base_dir, &req.component).is_some()
             || find_portable_java_for_major(&base_dir, req.major_version).is_some()
         {
             return Ok(());
         }
-        return Err("Java portable descargado pero no se encontro el ejecutable.".to_string());
+        return Err("Java portable descargado pero no se encontro el ejecutable."
+            .to_string()
+            .into());
     }
     if find_best_portable_java(&base_dir).is_some() {
         return Ok(());
@@ -120,7 +123,7 @@ pub(crate) async fn ensure_java_runtime(
     Ok(())
 }
 
-fn detect_java_major_at_path(path: &PathBuf) -> Option<u32> {
+fn detect_java_major_at_path(path: &Path) -> Option<u32> {
     let mut cmd = Command::new(path);
     cmd.arg("-version");
     hide_background_window(&mut cmd);
@@ -135,19 +138,9 @@ fn detect_java_major_at_path(path: &PathBuf) -> Option<u32> {
         if let Some(end) = rest.find('"') {
             let version_str = &rest[..end];
             let major = if version_str.starts_with("1.") {
-                version_str
-                    .split('.')
-                    .nth(1)
-                    .unwrap_or("0")
-                    .parse()
-                    .unwrap_or(0)
+                version_str.split('.').nth(1).unwrap_or("0").parse().unwrap_or(0)
             } else {
-                version_str
-                    .split('.')
-                    .next()
-                    .unwrap_or("0")
-                    .parse()
-                    .unwrap_or(0)
+                version_str.split('.').next().unwrap_or("0").parse().unwrap_or(0)
             };
             return Some(major);
         }
@@ -155,12 +148,9 @@ fn detect_java_major_at_path(path: &PathBuf) -> Option<u32> {
     None
 }
 
-fn find_portable_java(base_dir: &PathBuf, component: &str) -> Option<PathBuf> {
+fn find_portable_java(base_dir: &Path, component: &str) -> Option<PathBuf> {
     let (os_api, arch_api) = detect_os_adoptium();
-    let root = base_dir
-        .join("runtime")
-        .join(component)
-        .join(format!("{}-{}", os_api, arch_api));
+    let root = base_dir.join("runtime").join(component).join(format!("{}-{}", os_api, arch_api));
     if !root.exists() {
         return None;
     }
@@ -199,7 +189,7 @@ fn find_portable_java(base_dir: &PathBuf, component: &str) -> Option<PathBuf> {
     java_fallback
 }
 
-fn find_portable_java_for_major(base_dir: &PathBuf, required_major: u32) -> Option<PathBuf> {
+fn find_portable_java_for_major(base_dir: &Path, required_major: u32) -> Option<PathBuf> {
     let runtime_root = base_dir.join("runtime");
     if !runtime_root.exists() {
         return None;
@@ -227,7 +217,7 @@ fn find_portable_java_for_major(base_dir: &PathBuf, required_major: u32) -> Opti
     candidates.first().map(|(_, p)| p.clone())
 }
 
-fn find_best_portable_java(base_dir: &PathBuf) -> Option<PathBuf> {
+fn find_best_portable_java(base_dir: &Path) -> Option<PathBuf> {
     let runtime_root = base_dir.join("runtime");
     if !runtime_root.exists() {
         return None;
@@ -270,10 +260,7 @@ fn pick_highest_java_version(candidates: &[Option<JavaVersion>]) -> Option<JavaV
 fn infer_java_version_from_mc(version_id: &str) -> Option<JavaVersion> {
     let base = version_id.split('-').next().unwrap_or(version_id);
     let parts: Vec<&str> = base.split('.').collect();
-    let minor = parts
-        .get(1)
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(0);
+    let minor = parts.get(1).and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
     if minor >= 21 {
         return Some(JavaVersion {
             component: "java-runtime-delta".to_string(),
@@ -287,13 +274,7 @@ fn infer_java_version_from_mc(version_id: &str) -> Option<JavaVersion> {
         });
     }
     if minor == 17 {
-        return Some(JavaVersion {
-            component: "java-runtime-beta".to_string(),
-            major_version: 16,
-        });
+        return Some(JavaVersion { component: "java-runtime-beta".to_string(), major_version: 16 });
     }
-    Some(JavaVersion {
-        component: "java-runtime-alpha".to_string(),
-        major_version: 8,
-    })
+    Some(JavaVersion { component: "java-runtime-alpha".to_string(), major_version: 8 })
 }

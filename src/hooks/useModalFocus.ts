@@ -29,7 +29,12 @@ const focusElement = (element?: HTMLElement | null) => {
 /**
  * Maneja foco y Escape en modales para mejorar accesibilidad.
  */
-export function useModalFocus({ open, containerRef, initialFocusRef, onClose }: ModalFocusOptions): void {
+export function useModalFocus({
+  open,
+  containerRef,
+  initialFocusRef,
+  onClose,
+}: ModalFocusOptions): void {
   useEffect(() => {
     if (!open) return;
 

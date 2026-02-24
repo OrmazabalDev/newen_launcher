@@ -1,4 +1,4 @@
-﻿export const formatLoaderLabel = (value?: string) => {
+export const formatLoaderLabel = (value?: string) => {
   if (!value) return "Cualquiera";
   const v = value.toLowerCase();
   if (v === "neoforge") return "NeoForge";

@@ -1,7 +1,10 @@
-﻿use crate::models::{ProgressPayload, VersionManifest, VersionMetadata};
-use crate::utils::{create_client, detect_os_adoptium, get_launcher_dir, map_component_to_java_version};
 use super::download::download_url_to_path;
 use super::versions::get_version_metadata_impl;
+use crate::error::AppResult;
+use crate::models::{ProgressPayload, VersionManifest, VersionMetadata};
+use crate::utils::{
+    create_client, detect_os_adoptium, get_launcher_dir, map_component_to_java_version,
+};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use tokio::fs as tokio_fs;
@@ -11,13 +14,10 @@ pub async fn download_java_impl(
     version_id: Option<String>,
     manifest_cache: &Mutex<Option<VersionManifest>>,
     metadata_cache: &Mutex<Option<VersionMetadata>>,
-) -> Result<String, String> {
+) -> AppResult<String> {
     let _ = app.emit(
         "download-progress",
-        ProgressPayload {
-            task: "Iniciando descarga Java...".to_string(),
-            percent: 0.0,
-        },
+        ProgressPayload { task: "Iniciando descarga Java...".to_string(), percent: 0.0 },
     );
 
     if let Some(id) = version_id.clone() {
@@ -25,16 +25,14 @@ pub async fn download_java_impl(
     }
 
     let component = {
-        let cache = metadata_cache
-            .lock()
-            .map_err(|_| "Error cache".to_string())?;
+        let cache = metadata_cache.lock().map_err(|_| "Error cache".to_string())?;
         if let Some(meta) = &*cache {
             meta.java_version
                 .as_ref()
                 .map(|j| j.component.clone())
                 .unwrap_or("java-runtime-alpha".to_string())
         } else {
-            return Err("No hay metadata".to_string());
+            return Err("No hay metadata".to_string().into());
         }
     };
 
@@ -56,10 +54,7 @@ pub async fn download_java_impl(
 
     let _ = app.emit(
         "download-progress",
-        ProgressPayload {
-            task: "Buscando en Adoptium...".to_string(),
-            percent: 10.0,
-        },
+        ProgressPayload { task: "Buscando en Adoptium...".to_string(), percent: 10.0 },
     );
     let client = create_client();
     let mut last_err: Option<String> = None;
@@ -76,13 +71,11 @@ pub async fn download_java_impl(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let body = resp.text().await.unwrap_or_default();
-                last_err = Some(format!(
-                    "HTTP {} en Adoptium ({}) : {}",
-                    status, api_url, body
-                ));
+                last_err = Some(format!("HTTP {} en Adoptium ({}) : {}", status, api_url, body));
                 continue;
             }
-            let body = resp.text().await.map_err(|e| e.to_string())?;
+            let body =
+                resp.text().await.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
             if body.trim().is_empty() {
                 last_err = Some("Respuesta vacia de Adoptium".to_string());
                 continue;
@@ -107,7 +100,8 @@ pub async fn download_java_impl(
         return Err(format!(
             "Adoptium no respondio correctamente. {}",
             last_err.unwrap_or_else(|| "Sin detalles".to_string())
-        ));
+        )
+        .into());
     }
     let download_url = releases
         .first()
@@ -116,23 +110,22 @@ pub async fn download_java_impl(
         .and_then(|b| b.get("package"))
         .and_then(|p| p.get("link"))
         .and_then(|l| l.as_str())
-        .ok_or("No se encontro link de descarga en Adoptium")?;
+        .ok_or_else(|| {
+            crate::error::AppError::Message(
+                "No se encontro link de descarga en Adoptium".to_string(),
+            )
+        })?;
 
     let _ = app.emit(
         "download-progress",
-        ProgressPayload {
-            task: "Descargando ZIP...".to_string(),
-            percent: 30.0,
-        },
+        ProgressPayload { task: "Descargando ZIP...".to_string(), percent: 30.0 },
     );
     let cache_dir = get_launcher_dir(app).join("cache").join("java");
     tokio_fs::create_dir_all(&cache_dir)
         .await
-        .map_err(|e| e.to_string())?;
-    let archive_path = cache_dir.join(format!(
-        "adoptium-{}-{}-{}.zip",
-        component, os_api, arch_api
-    ));
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    let archive_path =
+        cache_dir.join(format!("adoptium-{}-{}-{}.zip", component, os_api, arch_api));
     download_url_to_path(download_url, &archive_path).await?;
 
     let base_dir = get_launcher_dir(app)
@@ -142,44 +135,43 @@ pub async fn download_java_impl(
 
     let _ = app.emit(
         "download-progress",
-        ProgressPayload {
-            task: "Descomprimiendo...".to_string(),
-            percent: 70.0,
-        },
+        ProgressPayload { task: "Descomprimiendo...".to_string(), percent: 70.0 },
     );
     let base_dir_clone = base_dir.clone();
     let archive_clone = archive_path.clone();
-    tokio::task::spawn_blocking(move || -> Result<(), String> {
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
         if base_dir_clone.exists() {
             std::fs::remove_dir_all(&base_dir_clone).ok();
         }
-        std::fs::create_dir_all(&base_dir_clone).map_err(|e| e.to_string())?;
-        let file = std::fs::File::open(&archive_clone).map_err(|e| e.to_string())?;
-        let mut zip = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&base_dir_clone)
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+        let file = std::fs::File::open(&archive_clone)
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+        let mut zip = zip::ZipArchive::new(file)
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         for i in 0..zip.len() {
-            let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
+            let mut f =
+                zip.by_index(i).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
             let out = base_dir_clone.join(f.mangled_name());
             if f.name().ends_with('/') {
                 std::fs::create_dir_all(&out).ok();
             } else {
                 if let Some(p) = out.parent() {
-                    std::fs::create_dir_all(p).map_err(|e| e.to_string())?;
+                    std::fs::create_dir_all(p)
+                        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
                 }
-                let mut out_file = std::fs::File::create(&out).map_err(|e| e.to_string())?;
-                std::io::copy(&mut f, &mut out_file).map_err(|e| e.to_string())?;
+                let mut out_file = std::fs::File::create(&out)
+                    .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+                std::io::copy(&mut f, &mut out_file)
+                    .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
             }
         }
         Ok(())
     })
     .await
-    .map_err(|e| e.to_string())??;
+    .map_err(|e| crate::error::AppError::Message(e.to_string()))??;
 
-    let _ = app.emit(
-        "download-progress",
-        ProgressPayload {
-            task: "Java OK".to_string(),
-            percent: 100.0,
-        },
-    );
+    let _ = app
+        .emit("download-progress", ProgressPayload { task: "Java OK".to_string(), percent: 100.0 });
     Ok("Java Instalado".to_string())
 }

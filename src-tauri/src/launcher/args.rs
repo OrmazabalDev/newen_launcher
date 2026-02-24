@@ -1,14 +1,14 @@
-﻿use crate::models::{GameSettings, MinecraftProfile, Rule, VersionArgument};
+use crate::models::{GameSettings, MinecraftProfile, Rule, VersionArgument};
 use crate::utils::{maven_artifact_path, should_download_lib};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::Path;
 
 use super::version::ResolvedVersion;
 
 pub(crate) fn build_classpath(
     resolved: &ResolvedVersion,
-    base_dir: &PathBuf,
-    lib_dir: &PathBuf,
+    base_dir: &Path,
+    lib_dir: &Path,
     include_game_jar: bool,
 ) -> String {
     let mut cp_paths = Vec::new();
@@ -37,10 +37,7 @@ pub(crate) fn build_classpath(
 
     if include_game_jar {
         let jar_id = &resolved.jar;
-        let client_jar = base_dir
-            .join("versions")
-            .join(jar_id)
-            .join(format!("{}.jar", jar_id));
+        let client_jar = base_dir.join("versions").join(jar_id).join(format!("{}.jar", jar_id));
         let client_path = client_jar.to_string_lossy().to_string();
         if seen.insert(client_path.clone()) {
             cp_paths.push(client_path);
@@ -56,37 +53,22 @@ pub(crate) fn build_arguments(
     profile: &MinecraftProfile,
     settings: &GameSettings,
     version_id: &str,
-    game_dir: &PathBuf,
-    assets_dir: &PathBuf,
-    natives_dir: &PathBuf,
-    lib_dir: &PathBuf,
+    game_dir: &Path,
+    assets_dir: &Path,
+    natives_dir: &Path,
+    lib_dir: &Path,
     classpath: &str,
     separator: &str,
 ) -> (Vec<String>, Vec<String>) {
     let mut vars = HashMap::new();
     vars.insert("auth_player_name".to_string(), profile.name.clone());
     vars.insert("version_name".to_string(), version_id.to_string());
-    vars.insert(
-        "game_directory".to_string(),
-        game_dir.to_string_lossy().to_string(),
-    );
-    vars.insert(
-        "assets_root".to_string(),
-        assets_dir.to_string_lossy().to_string(),
-    );
-    vars.insert(
-        "assets_index_name".to_string(),
-        resolved.asset_index_id.clone(),
-    );
+    vars.insert("game_directory".to_string(), game_dir.to_string_lossy().to_string());
+    vars.insert("assets_root".to_string(), assets_dir.to_string_lossy().to_string());
+    vars.insert("assets_index_name".to_string(), resolved.asset_index_id.clone());
     vars.insert("auth_uuid".to_string(), profile.id.clone());
-    let access_token = profile
-        .access_token
-        .clone()
-        .unwrap_or_else(|| "0".to_string());
-    let user_type = profile
-        .user_type
-        .clone()
-        .unwrap_or_else(|| "mojang".to_string());
+    let access_token = profile.access_token.clone().unwrap_or_else(|| "0".to_string());
+    let user_type = profile.user_type.clone().unwrap_or_else(|| "mojang".to_string());
     let auth_xuid = profile.xuid.clone().unwrap_or_else(|| "0".to_string());
     vars.insert("auth_access_token".to_string(), access_token);
     vars.insert("clientid".to_string(), "0".to_string());
@@ -95,25 +77,13 @@ pub(crate) fn build_arguments(
     vars.insert("user_type".to_string(), user_type);
     vars.insert("version_type".to_string(), "release".to_string());
     vars.insert("classpath".to_string(), classpath.to_string());
-    vars.insert(
-        "natives_directory".to_string(),
-        natives_dir.to_string_lossy().to_string(),
-    );
+    vars.insert("natives_directory".to_string(), natives_dir.to_string_lossy().to_string());
     vars.insert("launcher_name".to_string(), "NewenLauncher".to_string());
     vars.insert("launcher_version".to_string(), "1.0".to_string());
     vars.insert("classpath_separator".to_string(), separator.to_string());
-    vars.insert(
-        "library_directory".to_string(),
-        lib_dir.to_string_lossy().to_string(),
-    );
-    vars.insert(
-        "resolution_width".to_string(),
-        settings.resolution.width.to_string(),
-    );
-    vars.insert(
-        "resolution_height".to_string(),
-        settings.resolution.height.to_string(),
-    );
+    vars.insert("library_directory".to_string(), lib_dir.to_string_lossy().to_string());
+    vars.insert("resolution_width".to_string(), settings.resolution.width.to_string());
+    vars.insert("resolution_height".to_string(), settings.resolution.height.to_string());
 
     let mut features = HashMap::new();
     features.insert("is_demo_user".to_string(), false);
@@ -146,10 +116,7 @@ pub(crate) fn build_arguments(
     if !jvm_args.iter().any(|a| a.starts_with("-Xms")) {
         jvm_args.insert(0, format!("-Xms{}G", min_gb));
     }
-    if !jvm_args
-        .iter()
-        .any(|a| a.starts_with("-Djava.library.path="))
-    {
+    if !jvm_args.iter().any(|a| a.starts_with("-Djava.library.path=")) {
         jvm_args.push(format!("-Djava.library.path={}", vars["natives_directory"]));
     }
     if !jvm_args.iter().any(|a| a == "-cp" || a == "-classpath") {
@@ -160,9 +127,7 @@ pub(crate) fn build_arguments(
     let mut game_args = if let Some(args) = &resolved.arguments {
         build_args_list(args.game.as_ref(), &vars, &features)
     } else if let Some(raw) = &resolved.minecraft_arguments {
-        raw.split_whitespace()
-            .filter_map(|s| normalize_arg(substitute_vars(s, &vars)))
-            .collect()
+        raw.split_whitespace().filter_map(|s| normalize_arg(substitute_vars(s, &vars))).collect()
     } else {
         Vec::new()
     };
@@ -267,10 +232,9 @@ fn rules_allow(rules: Option<&Vec<Rule>>, features: &HashMap<String, bool>) -> b
 fn value_to_strings(v: &serde_json::Value) -> Vec<String> {
     match v {
         serde_json::Value::String(s) => vec![s.clone()],
-        serde_json::Value::Array(arr) => arr
-            .iter()
-            .filter_map(|x| x.as_str().map(|s| s.to_string()))
-            .collect(),
+        serde_json::Value::Array(arr) => {
+            arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect()
+        }
         _ => Vec::new(),
     }
 }

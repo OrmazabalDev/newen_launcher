@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use tauri::AppHandle;
 use tokio::fs as tokio_fs;
 
+use crate::error::AppResult;
 fn instance_dir(app: &AppHandle, instance_id: &str) -> PathBuf {
     get_launcher_dir(app).join("instances").join(instance_id)
 }
@@ -26,7 +27,7 @@ pub async fn apply_options_profile(
     app: &AppHandle,
     instance_id: &str,
     preset: &str,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let dir = instance_dir(app, instance_id);
     let options_path = dir.join("options.txt");
     let backup_dir = dir.join(".launcher");
@@ -71,17 +72,15 @@ pub async fn apply_options_profile(
     let text = lines.join("\n");
     tokio_fs::create_dir_all(&dir)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     tokio_fs::write(&options_path, text)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
 pub async fn load_installed_projects(app: &AppHandle, instance_id: &str) -> Vec<String> {
-    let path = instance_dir(app, instance_id)
-        .join(".launcher")
-        .join("mods.json");
+    let path = instance_dir(app, instance_id).join(".launcher").join("mods.json");
     if !path.exists() {
         return Vec::new();
     }
@@ -101,45 +100,45 @@ pub async fn backup_mods_snapshot(
     app: &AppHandle,
     instance_id: &str,
     files: &[String],
-) -> Result<(), String> {
+) -> AppResult<()> {
     let dir = instance_dir(app, instance_id).join(".launcher");
     tokio_fs::create_dir_all(&dir)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let path = dir.join("optimization.mods.backup.json");
-    let raw = serde_json::to_string_pretty(files).map_err(|e| e.to_string())?;
-    tokio_fs::write(path, raw)
-        .await
-        .map_err(|e| e.to_string())?;
+    let raw = serde_json::to_string_pretty(files)
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    tokio_fs::write(path, raw).await.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
-pub async fn restore_options_backup(app: &AppHandle, instance_id: &str) -> Result<(), String> {
+pub async fn restore_options_backup(app: &AppHandle, instance_id: &str) -> AppResult<()> {
     let dir = instance_dir(app, instance_id).join(".launcher");
     let backup_path = dir.join("options.backup");
     if !backup_path.exists() {
-        return Err("No hay backup de options.txt".to_string());
+        return Err("No hay backup de options.txt".to_string().into());
     }
     let raw = tokio_fs::read_to_string(&backup_path)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let target = instance_dir(app, instance_id).join("options.txt");
     tokio_fs::write(target, raw)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
-pub async fn restore_mods_snapshot(app: &AppHandle, instance_id: &str) -> Result<u32, String> {
+pub async fn restore_mods_snapshot(app: &AppHandle, instance_id: &str) -> AppResult<u32> {
     let dir = instance_dir(app, instance_id);
     let backup_path = dir.join(".launcher").join("optimization.mods.backup.json");
     if !backup_path.exists() {
-        return Err("No hay backup de mods optimizados".to_string());
+        return Err("No hay backup de mods optimizados".to_string().into());
     }
     let raw = tokio_fs::read_to_string(&backup_path)
         .await
-        .map_err(|e| e.to_string())?;
-    let list: Vec<String> = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    let list: Vec<String> =
+        serde_json::from_str(&raw).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     if list.is_empty() {
         return Ok(0);
     }

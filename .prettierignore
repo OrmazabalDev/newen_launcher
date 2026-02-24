@@ -1,0 +1,10 @@
+﻿node_modules
+.dist
+/dist
+src-tauri/target
+src-tauri/gen
+package-lock.json
+Cargo.lock
+*.png
+*.ico
+*.icns

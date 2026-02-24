@@ -2,16 +2,16 @@ export interface MinecraftProfile {
   id: string;
   name: string;
   is_offline: boolean;
-  skin_url?: string | null;
-  cape_urls?: string[] | null;
+  skin_url: string | null;
+  cape_urls: string[] | null;
 }
 
 export interface DeviceCodeResponse {
   user_code: string;
   device_code: string;
   verification_uri: string;
-  message?: string | null;
-  interval?: number | null;
+  message: string | null;
+  interval: number | null;
 }
 
 export interface SystemJava {
@@ -27,7 +27,14 @@ export interface ProgressPayload {
   percent: number;
 }
 
-export type View = "dashboard" | "manager" | "instances" | "catalog" | "modpacks" | "skins" | "settings";
+export type View =
+  | "dashboard"
+  | "manager"
+  | "instances"
+  | "catalog"
+  | "modpacks"
+  | "skins"
+  | "settings";
 export type AuthMode = "microsoft" | "offline";
 export type VersionType = "release" | "snapshot";
 
@@ -50,7 +57,7 @@ export interface GameSettings {
   javaPath: string;
   maxFps: number;
   focusMode: boolean;
-  performanceOverlay?: boolean;
+  performanceOverlay: boolean;
 }
 
 export type LoaderType = "vanilla" | "snapshot" | "forge" | "neoforge" | "fabric";
@@ -60,10 +67,10 @@ export interface InstanceSummary {
   name: string;
   version: string;
   loader: LoaderType;
-  thumbnail?: string | null;
+  thumbnail: string | null;
   tags: string[];
   created_at: number;
-  last_played?: number | null;
+  last_played: number | null;
   mods_count: number;
 }
 
@@ -75,9 +82,9 @@ export interface InstanceContentItem {
   modified: number;
   kind: string;
   required_by: string[];
-  source?: string | null;
-  project_id?: string | null;
-  version_id?: string | null;
+  source: string | null;
+  project_id: string | null;
+  version_id: string | null;
 }
 
 export interface InstanceLogEntry {
@@ -91,10 +98,10 @@ export interface RuntimeMetrics {
   used_memory_mb: number;
   total_memory_mb: number;
   used_memory_percent: number;
-  launcher_memory_mb?: number | null;
-  launcher_virtual_mb?: number | null;
-  process_memory_mb?: number | null;
-  process_virtual_mb?: number | null;
+  launcher_memory_mb: number | null;
+  launcher_virtual_mb: number | null;
+  process_memory_mb: number | null;
+  process_virtual_mb: number | null;
 }
 
 export interface ModrinthSearchResponse {
@@ -106,25 +113,25 @@ export interface ModrinthProjectHit {
   project_id: string;
   title: string;
   description: string;
-  icon_url?: string | null;
+  icon_url: string | null;
   downloads: number;
   date_modified: string;
 }
 
 export interface ModrinthGalleryImage {
   url: string;
-  title?: string | null;
-  description?: string | null;
-  featured?: boolean;
+  title: string | null;
+  description: string | null;
+  featured: boolean;
 }
 
 export interface ModrinthProject {
   id: string;
   title: string;
   description: string;
-  body?: string | null;
-  icon_url?: string | null;
-  gallery?: ModrinthGalleryImage[];
+  body: string | null;
+  icon_url: string | null;
+  gallery: ModrinthGalleryImage[];
 }
 
 export interface ModrinthVersion {
@@ -134,7 +141,7 @@ export interface ModrinthVersion {
   game_versions: string[];
   loaders: string[];
   files: ModrinthFile[];
-  dependencies?: ModrinthDependency[];
+  dependencies: ModrinthDependency[];
 }
 
 export interface ModrinthFile {
@@ -146,8 +153,8 @@ export interface ModrinthFile {
 }
 
 export interface ModrinthDependency {
-  version_id?: string | null;
-  project_id?: string | null;
+  version_id: string | null;
+  project_id: string | null;
   dependency_type: string;
 }
 
@@ -161,7 +168,7 @@ export interface CurseForgeMod {
   summary: string;
   download_count: number;
   date_modified: string;
-  logo?: {
+  logo: {
     thumbnail_url: string;
   } | null;
 }

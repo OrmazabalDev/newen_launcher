@@ -1,6 +1,7 @@
-import React from "react";
-import type { VersionItem } from "../types";
+﻿import type { VersionItem } from "../types";
 import { IconDownload } from "../icons";
+import { installButton, installedBadge, outlineButton, toggleBox, versionRow } from "./manager/styles";
+import { cn } from "../utils/cn";
 
 export function ManagerView({
   mojangVersions,
@@ -27,10 +28,12 @@ export function ManagerView({
         <div>
           <h2 className="text-3xl font-bold text-white">Gestor de versiones</h2>
           <p className="text-gray-300 text-sm">Instala nuevas versiones desde Mojang</p>
-          <p className="text-gray-500 text-xs mt-1">Forge/NeoForge/Fabric solo están disponibles para versiones release.</p>
+          <p className="text-gray-500 text-xs mt-1">
+            Forge/NeoForge/Fabric solo están disponibles para versiones release.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-gray-900 p-2 rounded-lg border border-gray-800">
+        <div className={toggleBox()}>
           <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-300 select-none">
             <input
               type="checkbox"
@@ -56,32 +59,28 @@ export function ManagerView({
               const isSnapshot = v.type === "snapshot";
 
               return (
-                <div
-                  key={v.id}
-                  className="bg-gray-900/50 border border-gray-800 p-4 rounded-xl flex items-center justify-between hover:bg-gray-900 transition group"
-                >
+                <div key={v.id} className={versionRow()}>
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${isSnapshot ? "bg-brand-info" : "bg-brand-accent"}`} />
+                    <div
+                      className={cn(
+                        "w-2 h-2 rounded-full",
+                        isSnapshot ? "bg-brand-info" : "bg-brand-accent"
+                      )}
+                    />
                     <div>
                       <div className="font-bold text-lg text-white">{v.id}</div>
-                      <div className="text-xs text-gray-400 uppercase font-bold tracking-wider">{v.type}</div>
+                      <div className="text-xs text-gray-400 uppercase font-bold tracking-wider">
+                        {v.type}
+                      </div>
                     </div>
-                    {isInstalled && (
-                      <span className="ml-2 bg-gray-700 text-gray-300 text-[10px] px-2 py-0.5 rounded uppercase">
-                        Instalada
-                      </span>
-                    )}
+                    {isInstalled && <span className={installedBadge()}>Instalada</span>}
                   </div>
 
                   <div className="flex gap-2 opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => onInstallVanilla(v.id)}
                       type="button"
-                      className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 ${
-                        isInstalled
-                          ? "bg-gray-800 text-gray-400 cursor-default"
-                          : "bg-brand-accent hover:bg-brand-accent-deep text-white shadow-lg"
-                      }`}
+                      className={installButton({ state: isInstalled ? "installed" : "ready" })}
                       disabled={isInstalled}
                       aria-disabled={isInstalled}
                       title={isInstalled ? "Versión instalada" : `Instalar Vanilla ${v.id}`}
@@ -95,13 +94,11 @@ export function ManagerView({
                       type="button"
                       disabled={isSnapshot}
                       aria-disabled={isSnapshot}
-                      className={`px-4 py-2 rounded-lg font-bold text-sm border ${
-                        isSnapshot
-                          ? "border-gray-800 text-gray-700 cursor-not-allowed"
-                          : "border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
-                      }`}
+                      className={outlineButton({ disabled: isSnapshot })}
                       title={isSnapshot ? "Forge no disponible para snapshots" : "Instalar Forge"}
-                      aria-label={isSnapshot ? "Forge no disponible para snapshots" : `Instalar Forge ${v.id}`}
+                      aria-label={
+                        isSnapshot ? "Forge no disponible para snapshots" : `Instalar Forge ${v.id}`
+                      }
                     >
                       Forge
                     </button>
@@ -111,13 +108,15 @@ export function ManagerView({
                       type="button"
                       disabled={isSnapshot}
                       aria-disabled={isSnapshot}
-                      className={`px-4 py-2 rounded-lg font-bold text-sm border ${
+                      className={outlineButton({ disabled: isSnapshot })}
+                      title={
+                        isSnapshot ? "NeoForge no disponible para snapshots" : "Instalar NeoForge"
+                      }
+                      aria-label={
                         isSnapshot
-                          ? "border-gray-800 text-gray-700 cursor-not-allowed"
-                          : "border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
-                      }`}
-                      title={isSnapshot ? "NeoForge no disponible para snapshots" : "Instalar NeoForge"}
-                      aria-label={isSnapshot ? "NeoForge no disponible para snapshots" : `Instalar NeoForge ${v.id}`}
+                          ? "NeoForge no disponible para snapshots"
+                          : `Instalar NeoForge ${v.id}`
+                      }
                     >
                       NeoForge
                     </button>
@@ -127,13 +126,13 @@ export function ManagerView({
                       type="button"
                       disabled={isSnapshot}
                       aria-disabled={isSnapshot}
-                      className={`px-4 py-2 rounded-lg font-bold text-sm border ${
-                        isSnapshot
-                          ? "border-gray-800 text-gray-700 cursor-not-allowed"
-                          : "border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
-                      }`}
+                      className={outlineButton({ disabled: isSnapshot })}
                       title={isSnapshot ? "Fabric no disponible para snapshots" : "Instalar Fabric"}
-                      aria-label={isSnapshot ? "Fabric no disponible para snapshots" : `Instalar Fabric ${v.id}`}
+                      aria-label={
+                        isSnapshot
+                          ? "Fabric no disponible para snapshots"
+                          : `Instalar Fabric ${v.id}`
+                      }
                     >
                       Fabric
                     </button>

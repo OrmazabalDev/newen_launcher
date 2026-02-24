@@ -46,22 +46,25 @@ export function useFocusMode(
       }
     });
 
-    const unlistenExit = deps.listen<{ pid: number; code?: number | null }>("game-exited", async () => {
-      options?.onGameExit?.();
-      if (!isEnabled) return;
-      try {
-        await windowApi.show();
-        await windowApi.unminimize();
-        if (wasFullscreen.current) {
-          await windowApi.setFullscreen(true);
-        } else if (wasMaximized.current) {
-          await windowApi.maximize();
+    const unlistenExit = deps.listen<{ pid: number; code?: number | null }>(
+      "game-exited",
+      async () => {
+        options?.onGameExit?.();
+        if (!isEnabled) return;
+        try {
+          await windowApi.show();
+          await windowApi.unminimize();
+          if (wasFullscreen.current) {
+            await windowApi.setFullscreen(true);
+          } else if (wasMaximized.current) {
+            await windowApi.maximize();
+          }
+          await windowApi.setFocus();
+        } catch {
+          // Errores de ventana no deben romper el flujo.
         }
-        await windowApi.setFocus();
-      } catch {
-        // Errores de ventana no deben romper el flujo.
       }
-    });
+    );
 
     return () => {
       unlistenStart.then((f) => f());

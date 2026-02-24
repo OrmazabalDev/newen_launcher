@@ -38,7 +38,12 @@ export function useLauncherPresence(api: DiscordPresenceApi): {
       try {
         await ensureDiscordReady();
         const startTimestamp = Math.floor(Date.now() / 1000);
-        await api.discordSetActivity(state, "Launcher de Minecraft / Version 1.0 Atacama", startTimestamp, true);
+        await api.discordSetActivity(
+          state,
+          "Launcher de Minecraft / Version 1.0 Atacama",
+          startTimestamp,
+          true
+        );
       } catch {
         // Errores de Discord no deben romper el launcher.
       }

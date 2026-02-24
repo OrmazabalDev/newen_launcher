@@ -1,7 +1,15 @@
-﻿import type { ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import type { ModrinthProjectHit, ModrinthVersion } from "../../../../types";
 import { IconChevronDown } from "../../../../icons";
 import type { ProjectType } from "../../constants";
+import { cn } from "../../../../utils/cn";
+import { modalBackdrop, modalCard } from "../../../../components/modalStyles";
+import {
+  panelCompact,
+  primaryButton,
+  selectInput,
+  textButton,
+} from "../../styles";
 
 type CatalogModrinthModalProps = {
   open: boolean;
@@ -32,8 +40,8 @@ type CatalogModrinthModalProps = {
   isProjectDisabled: boolean;
   isVersionInstalled: boolean;
   onClose: () => void;
-  modalRef: RefObject<HTMLDivElement | null>;
-  closeRef: RefObject<HTMLButtonElement | null>;
+  modalRef: RefObject<HTMLDivElement>;
+  closeRef: RefObject<HTMLButtonElement>;
 };
 
 export function CatalogModrinthModal({
@@ -72,7 +80,7 @@ export function CatalogModrinthModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/90 backdrop-blur-sm p-6 overscroll-contain"
+      className={modalBackdrop({ context: "catalog" })}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -81,7 +89,12 @@ export function CatalogModrinthModal({
     >
       <div
         ref={modalRef}
-        className="w-full max-w-3xl bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+        className={modalCard({
+          size: "xl",
+          padding: "none",
+          tone: "subtle",
+          overflow: "hidden",
+        })}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modrinth-modal-title"
@@ -92,7 +105,11 @@ export function CatalogModrinthModal({
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden">
               {selectedProject.icon_url ? (
-                <img src={selectedProject.icon_url} alt={selectedProject.title} className="w-full h-full object-cover" />
+                <img
+                  src={selectedProject.icon_url}
+                  alt={selectedProject.title}
+                  className="w-full h-full object-cover"
+                />
               ) : null}
             </div>
             <div>
@@ -107,7 +124,7 @@ export function CatalogModrinthModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className={textButton()}
             aria-label="Cerrar"
             ref={closeRef}
           >
@@ -121,16 +138,21 @@ export function CatalogModrinthModal({
               Tipo: {projectTypeLabel} · Versiones compatibles: {versionLabel}
               {projectType === "mod" ? ` · Loader: ${loader || "cualquiera"}` : ""}
             </div>
-            {projectType === "mod" && selectedVersion && availableLoaders.length > 0 && loaderLabel !== "Cualquiera" && (
-              <div className="text-xs text-brand-accent">Loader requerido: {loaderLabel}</div>
-            )}
+            {projectType === "mod" &&
+              selectedVersion &&
+              availableLoaders.length > 0 &&
+              loaderLabel !== "Cualquiera" && (
+                <div className="text-xs text-brand-accent">Loader requerido: {loaderLabel}</div>
+              )}
             <div className="text-sm text-gray-300">{selectedProject.description}</div>
           </div>
 
           <div className="space-y-3">
-            {versions.length === 0 && <div className="text-gray-500 text-sm">Sin versiones encontradas.</div>}
+            {versions.length === 0 && (
+              <div className="text-gray-500 text-sm">Sin versiones encontradas.</div>
+            )}
             {versions.length > 0 && (
-              <div className="bg-gray-950/60 border border-gray-800 rounded-xl p-4 space-y-3">
+              <div className={cn(panelCompact(), "p-4 space-y-3")}>
                 {projectType === "datapack" && (
                   <div className="space-y-2">
                     <label className="block text-[11px] uppercase tracking-widest text-gray-400">
@@ -145,7 +167,7 @@ export function CatalogModrinthModal({
                     ) : (
                       <div className="relative">
                         <select
-                          className="w-full appearance-none bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-brand-accent"
+                          className={selectInput({ size: "sm" })}
                           value={selectedWorldId}
                           onChange={(e) => onSelectWorldId(e.target.value)}
                         >
@@ -161,7 +183,9 @@ export function CatalogModrinthModal({
                       </div>
                     )}
                     {worldsError && (
-                      <div className="text-xs text-red-300">Error cargando mundos: {worldsError}</div>
+                      <div className="text-xs text-red-300">
+                        Error cargando mundos: {worldsError}
+                      </div>
                     )}
                   </div>
                 )}
@@ -185,7 +209,9 @@ export function CatalogModrinthModal({
                       className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-info file:text-white hover:file:bg-brand-info/90 disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                     {datapackImportDisabledReason && (
-                      <div className="text-[11px] text-amber-300">{datapackImportDisabledReason}</div>
+                      <div className="text-[11px] text-amber-300">
+                        {datapackImportDisabledReason}
+                      </div>
                     )}
                     {!datapackImportDisabledReason && (
                       <div className="text-[11px] text-gray-500">
@@ -199,7 +225,7 @@ export function CatalogModrinthModal({
                 </label>
                 <div className="relative">
                   <select
-                    className="w-full appearance-none bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-brand-accent"
+                    className={selectInput({ size: "sm" })}
                     value={selectedVersionId}
                     onChange={(e) => onSelectVersionId(e.target.value)}
                   >
@@ -217,13 +243,15 @@ export function CatalogModrinthModal({
                 <button
                   onClick={() => selectedVersionId && onInstall(selectedVersionId)}
                   type="button"
-                  className="w-full px-4 py-2.5 rounded-xl bg-brand-accent hover:bg-brand-accent-deep text-white text-sm font-bold disabled:opacity-60"
+                  className={cn(primaryButton(), "w-full px-4 py-2.5 text-sm")}
                   disabled={installDisabled}
                 >
                   {installButtonContent}
                 </button>
                 {projectType !== "datapack" && isProjectInstalled && (
-                  <div className={`text-[11px] ${isProjectDisabled ? "text-amber-300" : "text-emerald-300"}`}>
+                  <div
+                    className={`text-[11px] ${isProjectDisabled ? "text-amber-300" : "text-emerald-300"}`}
+                  >
                     {isVersionInstalled
                       ? "Ya instalado en esta instancia."
                       : isProjectDisabled

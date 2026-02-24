@@ -8,6 +8,7 @@ use crate::utils::get_launcher_dir;
 use std::sync::Mutex;
 use tauri::AppHandle;
 
+use crate::error::AppResult;
 fn extract_base_version(version_id: &str) -> String {
     if let Some((base, _)) = version_id.split_once("-forge-") {
         return base.to_string();
@@ -18,14 +19,8 @@ fn extract_base_version(version_id: &str) -> String {
     if let Some(raw) = version_id.strip_prefix("neoforge-") {
         let numeric = raw.split('-').next().unwrap_or(raw);
         let mut parts = numeric.split('.');
-        let minor = parts
-            .next()
-            .and_then(|p| p.parse::<u32>().ok())
-            .unwrap_or(0);
-        let patch = parts
-            .next()
-            .and_then(|p| p.parse::<u32>().ok())
-            .unwrap_or(0);
+        let minor = parts.next().and_then(|p| p.parse::<u32>().ok()).unwrap_or(0);
+        let patch = parts.next().and_then(|p| p.parse::<u32>().ok()).unwrap_or(0);
         if minor > 0 {
             if patch > 0 {
                 return format!("1.{}.{}", minor, patch);
@@ -45,12 +40,12 @@ pub async fn repair_instance_impl(
     instance_id: String,
     manifest_cache: &Mutex<Option<VersionManifest>>,
     metadata_cache: &Mutex<Option<VersionMetadata>>,
-) -> Result<String, String> {
+) -> AppResult<String> {
     let inst = get_instance_impl(app, &instance_id).await?;
     let base_version = extract_base_version(&inst.version);
     let version_dir = get_launcher_dir(app).join("versions").join(&inst.version);
     if !version_dir.exists() {
-        return Err("No se encontro la version instalada. Reinstala el loader.".to_string());
+        return Err("No se encontro la version instalada. Reinstala el loader.".to_string().into());
     }
 
     get_version_metadata_impl(app, base_version.clone(), manifest_cache, metadata_cache).await?;

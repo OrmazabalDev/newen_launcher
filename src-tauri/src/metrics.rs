@@ -1,6 +1,7 @@
 use crate::models::RuntimeMetrics;
 use sysinfo::{Pid, System};
 
+use crate::error::AppResult;
 #[cfg(windows)]
 fn get_private_memory_mb(pid: u32) -> Option<u64> {
     use windows_sys::Win32::Foundation::CloseHandle;
@@ -32,7 +33,7 @@ fn get_private_memory_mb(_pid: u32) -> Option<u64> {
     None
 }
 
-pub fn get_runtime_metrics_impl(pid: Option<u32>) -> Result<RuntimeMetrics, String> {
+pub fn get_runtime_metrics_impl(pid: Option<u32>) -> AppResult<RuntimeMetrics> {
     let launcher_pid = std::process::id();
     let mut sys = System::new();
     sys.refresh_memory();
@@ -60,8 +61,7 @@ pub fn get_runtime_metrics_impl(pid: Option<u32>) -> Result<RuntimeMetrics, Stri
         }
     };
 
-    let (process_memory_mb, process_virtual_mb) = if let Some(pid_value) = pid
-    {
+    let (process_memory_mb, process_virtual_mb) = if let Some(pid_value) = pid {
         let pid = Pid::from_u32(pid_value);
         if let Some(proc) = sys.process(pid) {
             let proc_mem =

@@ -1,15 +1,16 @@
-﻿use crate::models::MinecraftProfile;
+use crate::error::AppResult;
+use crate::models::MinecraftProfile;
 use crate::utils::get_launcher_dir;
-use std::path::PathBuf;
+use std::path::Path;
 use tauri::AppHandle;
 use tokio::fs as tokio_fs;
 
 pub(crate) async fn prepare_offline_skin_pack(
     app: &AppHandle,
-    game_dir: &PathBuf,
+    game_dir: &Path,
     version_id: &str,
     profile: &MinecraftProfile,
-) -> Result<Option<String>, String> {
+) -> AppResult<Option<String>> {
     if !profile.is_offline {
         return Ok(None);
     }
@@ -25,20 +26,16 @@ pub(crate) async fn prepare_offline_skin_pack(
     }
 
     let pack_dir = game_dir.join("resourcepacks").join("NewenOfflineSkin");
-    let textures_dir = pack_dir
-        .join("assets")
-        .join("minecraft")
-        .join("textures")
-        .join("entity");
+    let textures_dir = pack_dir.join("assets").join("minecraft").join("textures").join("entity");
     let player_dir = textures_dir.join("player");
     let wide_dir = player_dir.join("wide");
     let slim_dir = player_dir.join("slim");
     tokio_fs::create_dir_all(&wide_dir)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     tokio_fs::create_dir_all(&slim_dir)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     // Newer paths
     let _ = tokio_fs::copy(&skin_path, wide_dir.join("steve.png")).await;
@@ -46,7 +43,7 @@ pub(crate) async fn prepare_offline_skin_pack(
     // Legacy paths (older versions)
     tokio_fs::create_dir_all(&textures_dir)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let _ = tokio_fs::copy(&skin_path, textures_dir.join("steve.png")).await;
     let _ = tokio_fs::copy(&skin_path, textures_dir.join("alex.png")).await;
 
@@ -68,7 +65,7 @@ pub(crate) async fn prepare_offline_skin_pack(
     );
     tokio_fs::write(pack_dir.join("pack.mcmeta"), meta)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     let _ = tokio_fs::write(
         pack_dir.join("pack.png"),
@@ -82,18 +79,9 @@ pub(crate) async fn prepare_offline_skin_pack(
 pub(crate) fn pack_format_for_version(version_id: &str) -> i32 {
     let base = version_id.split('-').next().unwrap_or(version_id);
     let mut parts = base.split('.');
-    let _major = parts
-        .next()
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(1);
-    let minor = parts
-        .next()
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(0);
-    let patch = parts
-        .next()
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(0);
+    let _major = parts.next().and_then(|p| p.parse::<u32>().ok()).unwrap_or(1);
+    let minor = parts.next().and_then(|p| p.parse::<u32>().ok()).unwrap_or(0);
+    let patch = parts.next().and_then(|p| p.parse::<u32>().ok()).unwrap_or(0);
 
     if minor >= 20 {
         if patch >= 2 {

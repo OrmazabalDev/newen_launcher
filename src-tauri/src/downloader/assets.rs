@@ -1,37 +1,38 @@
-﻿use crate::models::{AssetIndexFile, ProgressPayload, VersionMetadata};
-use crate::utils::get_launcher_dir;
 use super::download::{is_valid_file, DownloadSpec};
 use super::http_cache::fetch_text_with_cache;
 use super::libraries::build_library_specs;
-use std::path::PathBuf;
+use crate::error::AppResult;
+use crate::models::{AssetIndexFile, ProgressPayload, VersionMetadata};
+use crate::utils::{ensure_dir_async, get_launcher_dir};
+use std::path::Path;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use tokio::fs as tokio_fs;
 
 pub(crate) async fn load_asset_index(
     app: &AppHandle,
-    index_path: &PathBuf,
+    index_path: &Path,
     url: &str,
     expected_size: u64,
     expected_sha1: &str,
-) -> Result<String, String> {
+) -> AppResult<String> {
     if index_path.exists()
         && is_valid_file(index_path, Some(expected_size), Some(expected_sha1), true).await?
     {
         return tokio_fs::read_to_string(index_path)
             .await
-            .map_err(|e| e.to_string());
+            .map_err(|e| crate::error::AppError::Message(e.to_string()));
     }
 
-    let text = fetch_text_with_cache(app, url, Some(index_path.clone()), false).await?;
+    let text = fetch_text_with_cache(app, url, Some(index_path.to_path_buf()), false).await?;
     if is_valid_file(index_path, Some(expected_size), Some(expected_sha1), true).await? {
         return Ok(text);
     }
 
     let _ = tokio_fs::remove_file(index_path).await;
-    let text = fetch_text_with_cache(app, url, Some(index_path.clone()), true).await?;
+    let text = fetch_text_with_cache(app, url, Some(index_path.to_path_buf()), true).await?;
     if !is_valid_file(index_path, Some(expected_size), Some(expected_sha1), true).await? {
-        return Err("Asset index invalido despues de reintento".to_string());
+        return Err("Asset index invalido despues de reintento".to_string().into());
     }
     Ok(text)
 }
@@ -40,18 +41,16 @@ pub async fn download_game_files_impl(
     app: &AppHandle,
     version_id: String,
     metadata_cache: &Mutex<Option<VersionMetadata>>,
-) -> Result<String, String> {
+) -> AppResult<String> {
     let (libraries, asset_index_info) = {
-        let cache = metadata_cache
-            .lock()
-            .map_err(|_| "Error lock".to_string())?;
+        let cache = metadata_cache.lock().map_err(|_| "Error lock".to_string())?;
         if let Some(meta) = &*cache {
             if meta.id != version_id {
-                return Err("Metadata incorrecta".to_string());
+                return Err("Metadata incorrecta".to_string().into());
             }
             (meta.libraries.clone(), meta.asset_index.clone())
         } else {
-            return Err("No hay metadata".to_string());
+            return Err("No hay metadata".to_string().into());
         }
     };
 
@@ -63,10 +62,7 @@ pub async fn download_game_files_impl(
     // 1. Librerias (concurrente + verificacion)
     let _ = app.emit(
         "download-progress",
-        ProgressPayload {
-            task: "Librerias 0/0".to_string(),
-            percent: 0.0,
-        },
+        ProgressPayload { task: "Librerias 0/0".to_string(), percent: 0.0 },
     );
     let lib_specs = build_library_specs(&libraries, &lib_dir).await?;
     super::download_specs_concurrent(
@@ -81,12 +77,8 @@ pub async fn download_game_files_impl(
     .await?;
 
     // 2. Assets (index con cache + objetos concurrentes)
-    tokio_fs::create_dir_all(&indexes_dir)
-        .await
-        .map_err(|e| e.to_string())?;
-    tokio_fs::create_dir_all(&objects_dir)
-        .await
-        .map_err(|e| e.to_string())?;
+    ensure_dir_async(&indexes_dir).await?;
+    ensure_dir_async(&objects_dir).await?;
 
     let index_path = indexes_dir.join(format!("{}.json", asset_index_info.id));
     let index_json_str = load_asset_index(
@@ -98,8 +90,8 @@ pub async fn download_game_files_impl(
     )
     .await?;
 
-    let index_data: AssetIndexFile =
-        serde_json::from_str(&index_json_str).map_err(|e| format!("Error Asset Index: {}", e))?;
+    let index_data: AssetIndexFile = serde_json::from_str(&index_json_str)
+        .map_err(|e| crate::error::AppError::Message(format!("Error Asset Index: {}", e)))?;
 
     let mut asset_specs = Vec::new();
     for (_name, object) in index_data.objects.iter() {
@@ -113,10 +105,8 @@ pub async fn download_game_files_impl(
             }
             let _ = tokio_fs::remove_file(&object_path).await;
         }
-        let object_url = format!(
-            "https://resources.download.minecraft.net/{}/{}",
-            hash_prefix, object.hash
-        );
+        let object_url =
+            format!("https://resources.download.minecraft.net/{}/{}", hash_prefix, object.hash);
         asset_specs.push(DownloadSpec {
             url: object_url,
             path: object_path,
@@ -128,10 +118,7 @@ pub async fn download_game_files_impl(
     let download_total = asset_specs.len();
     let _ = app.emit(
         "download-progress",
-        ProgressPayload {
-            task: format!("Assets 0/{}", download_total),
-            percent: 40.0,
-        },
+        ProgressPayload { task: format!("Assets 0/{}", download_total), percent: 40.0 },
     );
     super::download_specs_concurrent(
         Some(app),
@@ -146,10 +133,7 @@ pub async fn download_game_files_impl(
 
     let _ = app.emit(
         "download-progress",
-        ProgressPayload {
-            task: "Archivos listos".to_string(),
-            percent: 100.0,
-        },
+        ProgressPayload { task: "Archivos listos".to_string(), percent: 100.0 },
     );
     Ok("Archivos completados".to_string())
 }

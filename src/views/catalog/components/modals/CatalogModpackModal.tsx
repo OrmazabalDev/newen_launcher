@@ -1,7 +1,15 @@
-﻿import type { ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import type { ModrinthProject, ModrinthProjectHit, ModrinthVersion } from "../../../../types";
 import { IconChevronDown } from "../../../../icons";
 import { ModrinthMarkdown } from "../ModrinthMarkdown";
+import { cn } from "../../../../utils/cn";
+import { modalBackdrop, modalCard } from "../../../../components/modalStyles";
+import {
+  panelCompact,
+  primaryButton,
+  selectInput,
+  textButton,
+} from "../../styles";
 
 type ModrinthGalleryItem = NonNullable<ModrinthProject["gallery"]>[number];
 
@@ -34,8 +42,8 @@ type CatalogModpackModalProps = {
   loading: boolean;
   progressText: string;
   onClose: () => void;
-  modalRef: RefObject<HTMLDivElement | null>;
-  closeRef: RefObject<HTMLButtonElement | null>;
+  modalRef: RefObject<HTMLDivElement>;
+  closeRef: RefObject<HTMLButtonElement>;
 };
 
 export function CatalogModpackModal({
@@ -74,7 +82,7 @@ export function CatalogModpackModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/90 backdrop-blur-sm p-6 overscroll-contain"
+      className={modalBackdrop({ context: "catalog" })}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -83,7 +91,12 @@ export function CatalogModpackModal({
     >
       <div
         ref={modalRef}
-        className="w-full max-w-4xl bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+        className={modalCard({
+          size: "2xl",
+          padding: "none",
+          tone: "subtle",
+          overflow: "hidden",
+        })}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modpack-modal-title"
@@ -94,7 +107,11 @@ export function CatalogModpackModal({
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden">
               {selectedProject.icon_url ? (
-                <img src={selectedProject.icon_url} alt={selectedProject.title} className="w-full h-full object-cover" />
+                <img
+                  src={selectedProject.icon_url}
+                  alt={selectedProject.title}
+                  className="w-full h-full object-cover"
+                />
               ) : null}
             </div>
             <div>
@@ -109,7 +126,7 @@ export function CatalogModpackModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className={textButton()}
             aria-label="Cerrar"
             ref={closeRef}
           >
@@ -125,7 +142,7 @@ export function CatalogModpackModal({
 
             {activeImage && (
               <div>
-                <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">Galeria</div>
+                <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">Galería</div>
                 <div className="relative rounded-2xl overflow-hidden border border-gray-800 bg-gray-950">
                   <img
                     src={activeImage.url}
@@ -157,7 +174,7 @@ export function CatalogModpackModal({
                             type="button"
                             onClick={() => onSelectImage(idx)}
                             className={`w-2.5 h-2.5 rounded-full ${
-                              idx === (galleryIndex % galleryCount) ? "bg-white" : "bg-white/40"
+                              idx === galleryIndex % galleryCount ? "bg-white" : "bg-white/40"
                             }`}
                             aria-label={`Ir a imagen ${idx + 1}`}
                           />
@@ -175,7 +192,7 @@ export function CatalogModpackModal({
             )}
 
             {modpackDetails?.body && (
-              <div className="bg-gray-950/60 border border-gray-800 rounded-xl p-4">
+              <div className={cn(panelCompact(), "p-4")}>
                 {!showFullDescription ? (
                   <>
                     <div className="text-sm text-gray-200 leading-relaxed">{modpackPreview}</div>
@@ -195,7 +212,7 @@ export function CatalogModpackModal({
                     <button
                       type="button"
                       onClick={onHideFullDescription}
-                      className="mt-2 text-xs font-bold text-gray-400 hover:text-white"
+                      className={cn(textButton(), "mt-2 text-xs font-bold")}
                     >
                       Ver menos
                     </button>
@@ -206,15 +223,17 @@ export function CatalogModpackModal({
           </div>
 
           <div className="space-y-3">
-            {versions.length === 0 && <div className="text-gray-500 text-sm">Sin versiones encontradas.</div>}
+            {versions.length === 0 && (
+              <div className="text-gray-500 text-sm">Sin versiones encontradas.</div>
+            )}
             {versions.length > 0 && (
-              <div className="bg-gray-950/60 border border-gray-800 rounded-xl p-4 space-y-3">
+              <div className={cn(panelCompact(), "p-4 space-y-3")}>
                 <label className="block text-[11px] uppercase tracking-widest text-gray-400">
                   Versión disponible
                 </label>
                 <div className="relative">
                   <select
-                    className="w-full appearance-none bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-brand-accent"
+                    className={selectInput({ size: "sm" })}
                     value={selectedVersionId}
                     onChange={(e) => onSelectVersionId(e.target.value)}
                   >
@@ -236,7 +255,7 @@ export function CatalogModpackModal({
                 <button
                   onClick={() => selectedVersionId && onInstall(selectedVersionId)}
                   type="button"
-                  className="w-full px-4 py-2.5 rounded-xl bg-brand-accent hover:bg-brand-accent-deep text-white text-sm font-bold disabled:opacity-60"
+                  className={cn(primaryButton(), "w-full px-4 py-2.5 text-sm")}
                   disabled={!selectedVersionId || loading}
                 >
                   {modpackButtonContent}
@@ -244,15 +263,22 @@ export function CatalogModpackModal({
                 {(!selectedVersionId || loading) && modpackInstallDisabledReason && (
                   <div className="text-[11px] text-amber-300">{modpackInstallDisabledReason}</div>
                 )}
-                {loading && <div className="text-xs text-gray-400">{progressText || "Instalando modpack..."}</div>}
+                {loading && (
+                  <div className="text-xs text-gray-400">
+                    {progressText || "Instalando modpack..."}
+                  </div>
+                )}
               </div>
             )}
 
             <div className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
-              Backup recomendado: se crea una copia automática del modpack instalado (se guardan hasta 5).
+              Backup recomendado: se crea una copia automática del modpack instalado (se guardan
+              hasta 5).
             </div>
 
-            <div className="text-xs text-gray-400">Al instalar se creará una instancia nueva automáticamente.</div>
+            <div className="text-xs text-gray-400">
+              Al instalar se creará una instancia nueva automáticamente.
+            </div>
           </div>
         </div>
       </div>

@@ -1,28 +1,27 @@
+use crate::error::AppResult;
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
+
+use crate::state::AppState;
 
 const DISCORD_APP_ID: &str = "1469454586531024906";
 
-static DISCORD_CLIENT: Lazy<Mutex<Option<DiscordIpcClient>>> =
-    Lazy::new(|| Mutex::new(None));
+fn create_and_connect() -> AppResult<DiscordIpcClient> {
+    let mut client = DiscordIpcClient::new(DISCORD_APP_ID)
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
-fn create_and_connect() -> Result<DiscordIpcClient, String> {
-    let mut client =
-        DiscordIpcClient::new(DISCORD_APP_ID).map_err(|e| e.to_string())?;
-
-    client.connect().map_err(|e| e.to_string())?;
+    client.connect().map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     Ok(client)
 }
 
-fn with_client<F>(mut f: F) -> Result<(), String>
+fn with_client<F>(app_state: &AppState, mut f: F) -> AppResult<()>
 where
-    F: FnMut(&mut DiscordIpcClient) -> Result<(), String>,
+    F: FnMut(&mut DiscordIpcClient) -> AppResult<()>,
 {
-    let mut guard = DISCORD_CLIENT
+    let mut guard = app_state
+        .discord_client
         .lock()
-        .map_err(|_| "Discord mutex error".to_string())?;
+        .map_err(|_| crate::error::AppError::Message("Discord mutex error".to_string()))?;
 
     if guard.is_none() {
         match create_and_connect() {
@@ -37,7 +36,7 @@ where
     }
 
     if let Some(client) = guard.as_mut() {
-        if let Err(_) = f(client) {
+        if f(client).is_err() {
             // Si falla algo, reseteamos cliente
             *guard = None;
         }
@@ -46,25 +45,23 @@ where
     Ok(())
 }
 
-pub fn init() -> Result<(), String> {
-    with_client(|_| Ok(()))
+pub fn init(app_state: &AppState) -> AppResult<()> {
+    with_client(app_state, |_| Ok(()))
 }
 
 pub fn set_activity(
+    app_state: &AppState,
     state: &str,
     details: &str,
     start_timestamp: Option<i64>,
     show_buttons: bool,
-) -> Result<(), String> {
-    with_client(|client| {
-        let mut act = activity::Activity::new()
-            .state(state)
-            .details(details)
-            .assets(
-                activity::Assets::new()
-                    .large_image("newen_icon") // debe existir en Discord Dev Portal
-                    .large_text("Newen Launcher"),
-            );
+) -> AppResult<()> {
+    with_client(app_state, |client| {
+        let mut act = activity::Activity::new().state(state).details(details).assets(
+            activity::Assets::new()
+                .large_image("newen_icon") // debe existir en Discord Dev Portal
+                .large_text("Newen Launcher"),
+        );
 
         if let Some(ts) = start_timestamp {
             act = act.timestamps(activity::Timestamps::new().start(ts));
@@ -76,27 +73,27 @@ pub fn set_activity(
                     "Descargar Launcher",
                     "https://ormazabaldev.github.io/newen-web/",
                 ),
-                activity::Button::new(
-                    "Unirse a la Comunidad",
-                    "https://discord.gg/TU_INVITE",
-                ),
+                activity::Button::new("Unirse a la Comunidad", "https://discord.gg/TU_INVITE"),
             ]);
         }
 
-        client.set_activity(act).map_err(|e| e.to_string())
+        client.set_activity(act).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+        Ok(())
     })
 }
 
-pub fn clear_activity() -> Result<(), String> {
-    with_client(|client| {
-        client.clear_activity().map_err(|e| e.to_string())
+pub fn clear_activity(app_state: &AppState) -> AppResult<()> {
+    with_client(app_state, |client| {
+        client.clear_activity().map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+        Ok(())
     })
 }
 
-pub fn shutdown() -> Result<(), String> {
-    let mut guard = DISCORD_CLIENT
+pub fn shutdown(app_state: &AppState) -> AppResult<()> {
+    let mut guard = app_state
+        .discord_client
         .lock()
-        .map_err(|_| "Discord mutex error".to_string())?;
+        .map_err(|_| crate::error::AppError::Message("Discord mutex error".to_string()))?;
 
     if let Some(mut client) = guard.take() {
         let _ = client.close();

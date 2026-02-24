@@ -21,7 +21,12 @@ export interface InstancesApi {
   downloadGameFiles: (versionId: string) => Promise<void>;
   downloadJava: (versionId?: string) => Promise<void>;
   repairInstance: (instanceId: string) => Promise<string>;
-  applyOptimizationPack: (instanceId: string, loader: string, gameVersion: string, preset?: string) => Promise<string>;
+  applyOptimizationPack: (
+    instanceId: string,
+    loader: string,
+    gameVersion: string,
+    preset?: string
+  ) => Promise<string>;
   installForge: (versionId: string) => Promise<string>;
   installNeoForge: (versionId: string) => Promise<string>;
   installFabric: (versionId: string) => Promise<string>;
@@ -84,7 +89,9 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
 
   const [instances, setInstances] = useState<InstanceSummary[]>([]);
   const [instancesLoading, setInstancesLoading] = useState(false);
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string>(initialSelectedInstanceId ?? "");
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>(
+    initialSelectedInstanceId ?? ""
+  );
   const [pendingInstanceId, setPendingInstanceId] = useState<string>("");
   const [errorInstanceIds, setErrorInstanceIds] = useState<Set<string>>(new Set());
   const [showJavaPrompt, setShowJavaPrompt] = useState(false);
@@ -105,7 +112,8 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
       setInstances(list);
       setSelectedInstanceId((current) => {
         if (!current && list.length > 0) {
-          return list[0].id;
+          const first = list[0];
+          return first ? first.id : "";
         }
         if (current && !list.find((item) => item.id === current)) {
           return list[0]?.id || "";
@@ -126,7 +134,9 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
     async (instance: InstanceSummary) => {
       const versionId = instance.version;
       const isModded =
-        versionId.includes("forge") || versionId.includes("neoforge") || versionId.includes("fabric");
+        versionId.includes("forge") ||
+        versionId.includes("neoforge") ||
+        versionId.includes("fabric");
 
       setPendingInstanceId(instance.id);
       onProcessingChange(true);
@@ -146,7 +156,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
           next.delete(instance.id);
           return next;
         });
-      } catch (err: any) {
+      } catch (err) {
         const message = String(err);
         onGlobalStatus("Error: lanzamiento fallido. " + message);
         void setLauncherPresence("Gestionando instancias");
@@ -168,7 +178,15 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
         onProcessingChange(false);
       }
     },
-    [api, gameSettings, onGlobalStatus, onProcessingChange, onProgressChange, setLauncherPresence, showToast]
+    [
+      api,
+      gameSettings,
+      onGlobalStatus,
+      onProcessingChange,
+      onProgressChange,
+      setLauncherPresence,
+      showToast,
+    ]
   );
 
   const playSelectedInstance = useCallback(async () => {
@@ -194,7 +212,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
         next.delete(selectedInstance.id);
         return next;
       });
-    } catch (err: any) {
+    } catch (err) {
       onGlobalStatus("Error: reparacion fallida. " + String(err));
     } finally {
       onProcessingChange(false);
@@ -246,7 +264,9 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
         onGlobalStatus("Instancia creada.");
 
         const isModded =
-          payload.loader === "forge" || payload.loader === "neoforge" || payload.loader === "fabric";
+          payload.loader === "forge" ||
+          payload.loader === "neoforge" ||
+          payload.loader === "fabric";
         if (isModded && !created.tags?.includes("modpack")) {
           const ok = await askConfirm({
             title: "Optimizar instancia",
@@ -256,11 +276,16 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
           });
           if (ok) {
             const baseVersion = extractBaseVersion(created.version);
-            const message = await api.applyOptimizationPack(created.id, created.loader, baseVersion, "balanced");
+            const message = await api.applyOptimizationPack(
+              created.id,
+              created.loader,
+              baseVersion,
+              "balanced"
+            );
             onGlobalStatus(message);
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         onGlobalStatus("Error: no se pudo crear la instancia. " + String(err));
       } finally {
         onProcessingChange(false);
@@ -291,7 +316,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
           return next;
         });
         onGlobalStatus("Instancia eliminada.");
-      } catch (err: any) {
+      } catch (err) {
         onGlobalStatus("Error: no se pudo eliminar la instancia. " + String(err));
       }
     },
@@ -308,12 +333,20 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
       if (target) {
         await api.launchGame(target.version, gameSettings, target.id);
       }
-    } catch (err: any) {
+    } catch (err) {
       onGlobalStatus("Error: Java. " + String(err));
     } finally {
       onProcessingChange(false);
     }
-  }, [api, gameSettings, instances, onGlobalStatus, onProcessingChange, pendingInstanceId, selectedInstance]);
+  }, [
+    api,
+    gameSettings,
+    instances,
+    onGlobalStatus,
+    onProcessingChange,
+    pendingInstanceId,
+    selectedInstance,
+  ]);
 
   return {
     instances,

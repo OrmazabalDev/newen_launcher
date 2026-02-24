@@ -5,17 +5,18 @@ use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 use tokio::fs as tokio_fs;
 
+use crate::error::AppResult;
 fn instance_dir(app: &AppHandle, instance_id: &str) -> PathBuf {
     get_launcher_dir(app).join("instances").join(instance_id)
 }
 
-fn instance_kind_dir(app: &AppHandle, instance_id: &str, kind: &str) -> Result<PathBuf, String> {
+fn instance_kind_dir(app: &AppHandle, instance_id: &str, kind: &str) -> AppResult<PathBuf> {
     let base = instance_dir(app, instance_id);
     match kind {
         "mods" => Ok(base.join("mods")),
         "resourcepacks" => Ok(base.join("resourcepacks")),
         "shaderpacks" => Ok(base.join("shaderpacks")),
-        _ => Err("Tipo inválido (mods/resourcepacks/shaderpacks)".to_string()),
+        _ => Err("Tipo inválido (mods/resourcepacks/shaderpacks)".to_string().into()),
     }
 }
 
@@ -66,11 +67,7 @@ fn strip_disabled(name: &str) -> (String, bool) {
 }
 
 fn is_allowed_file(kind: &str, path: &Path) -> bool {
-    let ext = path
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_lowercase();
+    let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
     match kind {
         "mods" => ext == "jar" || ext == "disabled",
         "resourcepacks" | "shaderpacks" => ext == "zip" || ext == "disabled",
@@ -90,7 +87,7 @@ pub async fn list_instance_content_impl(
     app: &AppHandle,
     instance_id: String,
     kind: String,
-) -> Result<Vec<InstanceContentItem>, String> {
+) -> AppResult<Vec<InstanceContentItem>> {
     let dir = instance_kind_dir(app, &instance_id, &kind)?;
     if !dir.exists() {
         return Ok(Vec::new());
@@ -106,16 +103,15 @@ pub async fn list_instance_content_impl(
                 continue;
             }
             for dep in &entry.dependencies {
-                required_by_map
-                    .entry(dep.clone())
-                    .or_default()
-                    .push(entry.file_name.clone());
+                required_by_map.entry(dep.clone()).or_default().push(entry.file_name.clone());
             }
         }
     }
 
     let mut out = Vec::new();
-    let mut rd = tokio_fs::read_dir(&dir).await.map_err(|e| e.to_string())?;
+    let mut rd = tokio_fs::read_dir(&dir)
+        .await
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     while let Ok(Some(entry)) = rd.next_entry().await {
         let path = entry.path();
         if !path.is_file() {
@@ -126,7 +122,8 @@ pub async fn list_instance_content_impl(
         }
         let file_name = entry.file_name().to_string_lossy().to_string();
         let (display_name, enabled) = strip_disabled(&file_name);
-        let meta = entry.metadata().await.map_err(|e| e.to_string())?;
+        let meta =
+            entry.metadata().await.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         let size = meta.len();
         let modified = path_modified_millis(&meta);
 
@@ -134,15 +131,15 @@ pub async fn list_instance_content_impl(
         let mut source = None;
         let mut project_id = None;
         let mut version_id = None;
-        let lookup = if enabled {
-            file_name.clone()
-        } else {
-            display_name.clone()
-        };
+        let lookup = if enabled { file_name.clone() } else { display_name.clone() };
         if let Some(entry_meta) = metadata
             .iter()
             .find(|m| m.file_name == lookup && metadata_kind_matches(&m.kind, &kind))
-            .or_else(|| metadata.iter().find(|m| m.file_name == file_name && metadata_kind_matches(&m.kind, &kind)))
+            .or_else(|| {
+                metadata
+                    .iter()
+                    .find(|m| m.file_name == file_name && metadata_kind_matches(&m.kind, &kind))
+            })
         {
             source = entry_meta.source.clone();
             project_id = entry_meta.project_id.clone();
@@ -185,24 +182,20 @@ pub async fn toggle_instance_content_impl(
     kind: String,
     file_name: String,
     enabled: bool,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let dir = instance_kind_dir(app, &instance_id, &kind)?;
     let path = dir.join(&file_name);
     if !path.exists() {
-        return Err("Archivo no encontrado".to_string());
+        return Err("Archivo no encontrado".to_string().into());
     }
     let (clean_name, is_enabled) = strip_disabled(&file_name);
     if enabled == is_enabled {
         return Ok(());
     }
-    let new_name = if enabled {
-        clean_name
-    } else {
-        format!("{}.disabled", clean_name)
-    };
+    let new_name = if enabled { clean_name } else { format!("{}.disabled", clean_name) };
     tokio_fs::rename(&path, dir.join(&new_name))
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     if kind == "mods" {
         let _ = refresh_instance_mods_cache(app, &instance_id).await;
     }
@@ -214,15 +207,15 @@ pub async fn delete_instance_content_impl(
     instance_id: String,
     kind: String,
     file_name: String,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let dir = instance_kind_dir(app, &instance_id, &kind)?;
     let path = dir.join(&file_name);
     if !path.exists() {
-        return Err("Archivo no encontrado".to_string());
+        return Err("Archivo no encontrado".to_string().into());
     }
     tokio_fs::remove_file(path)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     if kind == "mods" || kind == "resourcepacks" || kind == "shaderpacks" {
         let (clean_name, _) = strip_disabled(&file_name);
@@ -253,42 +246,42 @@ pub fn open_instance_content_folder_impl(
     app: &AppHandle,
     instance_id: String,
     kind: String,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let dir = instance_kind_dir(app, &instance_id, &kind)?;
     if !dir.exists() {
-        return Err("La carpeta no existe".to_string());
+        return Err("La carpeta no existe".to_string().into());
     }
 
     if cfg!(target_os = "windows") {
         std::process::Command::new("explorer")
             .arg(dir)
             .spawn()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         return Ok(());
     }
     if cfg!(target_os = "macos") {
         std::process::Command::new("open")
             .arg(dir)
             .spawn()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         return Ok(());
     }
     std::process::Command::new("xdg-open")
         .arg(dir)
         .spawn()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
-fn logs_dir(instance_dir: &PathBuf) -> PathBuf {
+fn logs_dir(instance_dir: &Path) -> PathBuf {
     instance_dir.join("logs")
 }
 
-fn crashes_dir(instance_dir: &PathBuf) -> PathBuf {
+fn crashes_dir(instance_dir: &Path) -> PathBuf {
     instance_dir.join("crash-reports")
 }
 
-async fn list_dir_entries(dir: &PathBuf, kind: &str) -> Vec<InstanceLogEntry> {
+async fn list_dir_entries(dir: &Path, kind: &str) -> Vec<InstanceLogEntry> {
     let mut out = Vec::new();
     if !dir.exists() {
         return out;
@@ -316,10 +309,10 @@ async fn list_dir_entries(dir: &PathBuf, kind: &str) -> Vec<InstanceLogEntry> {
 pub async fn list_instance_reports_impl(
     app: &AppHandle,
     instance_id: String,
-) -> Result<Vec<InstanceLogEntry>, String> {
+) -> AppResult<Vec<InstanceLogEntry>> {
     let base = instance_dir(app, &instance_id);
     if !base.exists() {
-        return Err("La instancia no existe".to_string());
+        return Err("La instancia no existe".to_string().into());
     }
     let mut out = Vec::new();
     out.extend(list_dir_entries(&logs_dir(&base), "log").await);
@@ -328,22 +321,24 @@ pub async fn list_instance_reports_impl(
     Ok(out)
 }
 
-async fn read_tail(path: &PathBuf, max_bytes: u64) -> Result<String, String> {
-    let path = path.clone();
-    let data = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
+async fn read_tail(path: &Path, max_bytes: u64) -> AppResult<String> {
+    let path = path.to_path_buf();
+    let data = tokio::task::spawn_blocking(move || -> AppResult<Vec<u8>> {
         use std::io::{Read, Seek, SeekFrom};
-        let mut file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
-        let len = file.metadata().map_err(|e| e.to_string())?.len();
-        let start = if len > max_bytes { len - max_bytes } else { 0 };
+        let mut file = std::fs::File::open(&path)
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+        let len =
+            file.metadata().map_err(|e| crate::error::AppError::Message(e.to_string()))?.len();
+        let start = len.saturating_sub(max_bytes);
         file.seek(SeekFrom::Start(start))
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         let mut buf = Vec::new();
-        file.read_to_end(&mut buf).map_err(|e| e.to_string())?;
+        file.read_to_end(&mut buf).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         Ok(buf)
     })
     .await
-    .map_err(|e| e.to_string())??;
-    String::from_utf8(data).map_err(|e| e.to_string())
+    .map_err(|e| crate::error::AppError::Message(e.to_string()))??;
+    String::from_utf8(data).map_err(|e| crate::error::AppError::Message(e.to_string()))
 }
 
 pub async fn read_instance_report_impl(
@@ -351,19 +346,19 @@ pub async fn read_instance_report_impl(
     instance_id: String,
     kind: String,
     name: String,
-) -> Result<String, String> {
+) -> AppResult<String> {
     let base = instance_dir(app, &instance_id);
     if !base.exists() {
-        return Err("La instancia no existe".to_string());
+        return Err("La instancia no existe".to_string().into());
     }
     let folder = match kind.as_str() {
         "log" => logs_dir(&base),
         "crash" => crashes_dir(&base),
-        _ => return Err("Tipo inválido".to_string()),
+        _ => return Err("Tipo inválido".to_string().into()),
     };
     let path = folder.join(name);
     if !path.exists() {
-        return Err("Archivo no encontrado".to_string());
+        return Err("Archivo no encontrado".to_string().into());
     }
     read_tail(&path, 512 * 1024).await
 }
@@ -372,7 +367,7 @@ pub async fn upsert_mod_metadata(
     app: &AppHandle,
     instance_id: &str,
     entry: ModMetadataEntry,
-) -> Result<(), String> {
+) -> AppResult<()> {
     let mut entries = load_mods_metadata(app, instance_id).await;
     let target_kind = entry.kind.clone().unwrap_or_else(|| "mods".to_string());
     if let Some(existing) = entries

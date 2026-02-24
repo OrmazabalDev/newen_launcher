@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import type { AuthMode, DeviceCodeResponse, MinecraftProfile } from "../types";
 import * as tauri from "../services/tauri";
+import { cn } from "../utils/cn";
+import { actionButton, card, errorBox, input, page, panel, tabButton, tabGroup } from "./login/styles";
 
 export function LoginView({
   authMode,
@@ -71,7 +73,7 @@ export function LoginView({
       const device = await tauri.startMsLogin();
       setDeviceInfo(device);
       setAuthMode("microsoft");
-      setMsStatus("Ingresa el c\u00f3digo en tu navegador para continuar.");
+      setMsStatus("Ingresa el código en tu navegador para continuar.");
 
       if (!isPollingRef.current) {
         const intervalMs = Math.max(3, device.interval || 5) * 1000;
@@ -84,10 +86,10 @@ export function LoginView({
             setDeviceInfo(null);
             setMsStatus("");
             onLoginMicrosoft(parsed);
-          } catch (err: any) {
+          } catch (err) {
             const message = String(err);
             if (message.includes("authorization_pending") || message.includes("slow_down")) {
-              setMsStatus("Esperando confirmaci\u00f3n en Microsoft...");
+              setMsStatus("Esperando confirmación en Microsoft...");
               return;
             }
             stopPolling();
@@ -96,7 +98,7 @@ export function LoginView({
           }
         }, intervalMs);
       }
-    } catch (err: any) {
+    } catch (err) {
       setMsStatus("");
       setIsPolling(false);
       setAuthError(String(err));
@@ -104,20 +106,18 @@ export function LoginView({
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6 relative overflow-hidden" aria-busy={isPolling}>
-      <div className="w-full max-w-md bg-gray-900/80 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-gray-800 z-10">
+    <div className={page()} aria-busy={isPolling}>
+      <div className={card()}>
         <h1 className="text-4xl font-black text-center mb-8 text-white">
           NEWEN <span className="text-brand-accent">LAUNCHER</span>
         </h1>
 
-        <div className="flex bg-gray-800 p-1 rounded-lg mb-6">
+        <div className={tabGroup()}>
           <button
             type="button"
             onClick={startMicrosoftLogin}
             disabled={isPolling}
-            className={`flex-1 py-2 rounded-md text-sm ${
-              authMode === "microsoft" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"
-            } ${isPolling ? "opacity-60 cursor-not-allowed" : ""}`}
+            className={cn(tabButton({ active: authMode === "microsoft" }), isPolling && "opacity-60 cursor-not-allowed")}
           >
             {isPolling ? "Conectando..." : "Microsoft"}
           </button>
@@ -125,9 +125,7 @@ export function LoginView({
             onClick={() => setAuthMode("offline")}
             type="button"
             disabled={isPolling}
-            className={`flex-1 py-2 rounded-md text-sm ${
-              authMode === "offline" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"
-            } ${isPolling ? "opacity-60 cursor-not-allowed" : ""}`}
+            className={cn(tabButton({ active: authMode === "offline" }), isPolling && "opacity-60 cursor-not-allowed")}
           >
             Offline
           </button>
@@ -137,9 +135,11 @@ export function LoginView({
           {authMode === "microsoft" && deviceInfo ? (
             <div className="space-y-3">
               <p className="text-sm text-gray-300">{deviceInfo.message || msStatus}</p>
-              <div className="bg-gray-950 border border-gray-700 rounded-xl p-4">
-                <div className="text-xs text-gray-500 mb-2">C\u00f3digo</div>
-                <div className="text-2xl font-bold tracking-widest text-white">{deviceInfo.user_code}</div>
+              <div className={panel()}>
+                <div className="text-xs text-gray-500 mb-2">Código</div>
+                <div className="text-2xl font-bold tracking-widest text-white">
+                  {deviceInfo.user_code}
+                </div>
                 <div className="text-xs text-gray-500 mt-2">URL</div>
                 <div className="text-sm text-gray-300 break-all">{deviceInfo.verification_uri}</div>
               </div>
@@ -148,9 +148,9 @@ export function LoginView({
                 onClick={() => {
                   navigator.clipboard.writeText(deviceInfo.user_code).catch(() => undefined);
                 }}
-                className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm"
+                className={actionButton({ tone: "secondary" })}
               >
-                Copiar c\u00f3digo
+                Copiar código
               </button>
               {msStatus && (
                 <div className="text-xs text-gray-400" role="status" aria-live="polite">
@@ -165,19 +165,19 @@ export function LoginView({
               </label>
               <input
                 id="offline-username"
-                className="w-full px-4 py-3 bg-gray-950 border border-gray-700 rounded-xl text-white outline-none focus:border-brand-accent"
+                className={input()}
                 placeholder="Nombre de Usuario"
                 value={offlineUsername}
                 onChange={(e) => setOfflineUsername(e.target.value)}
               />
               <p className="text-xs text-gray-400">
-                En modo offline no necesitas cuenta Microsoft. Tu nombre aparecer\u00e1 en el juego.
+                En modo offline no necesitas cuenta Microsoft. Tu nombre aparecerá en el juego.
               </p>
               <button
                 onClick={onLoginOffline}
                 disabled={!offlineUsername.trim() || isPolling}
                 type="button"
-                className="w-full py-3.5 bg-brand-accent hover:bg-brand-accent-deep rounded-xl font-bold text-white transition disabled:opacity-60 disabled:cursor-not-allowed"
+                className={cn(actionButton({ tone: "primary" }), "py-3.5")}
               >
                 Entrar
               </button>
@@ -185,11 +185,7 @@ export function LoginView({
           )}
 
           {authError && (
-            <div
-              className="text-sm text-red-400 bg-red-950/30 border border-red-900 rounded-xl p-3"
-              role="alert"
-              aria-live="assertive"
-            >
+            <div className={errorBox()} role="alert" aria-live="assertive">
               {authErrorLabel}
             </div>
           )}

@@ -2,7 +2,7 @@ export type ModrinthProjectType = "mod" | "modpack" | "resourcepack" | "datapack
 
 export interface ModrinthSearchResult<T = unknown> {
   hits: T[];
-  total_hits?: number;
+  total_hits: number;
 }
 
 export type ModrinthSearchFn = (
@@ -12,7 +12,8 @@ export type ModrinthSearchFn = (
   loader?: string,
   gameVersion?: string,
   index?: string,
-  projectType?: ModrinthProjectType
+  projectType?: ModrinthProjectType,
+  categories?: string[]
 ) => Promise<ModrinthSearchResult>;
 
 /**
@@ -42,7 +43,9 @@ export async function prefetchCatalog(
   search: ModrinthSearchFn,
   persist: (key: string, payload: Record<string, unknown>) => void = savePrefetch
 ): Promise<void> {
-  const loaderSet = new Set(loaders.filter((loader) => loader === "forge" || loader === "neoforge" || loader === "fabric"));
+  const loaderSet = new Set(
+    loaders.filter((loader) => loader === "forge" || loader === "neoforge" || loader === "fabric")
+  );
   loaderSet.add("forge");
   loaderSet.add("neoforge");
   loaderSet.add("fabric");
@@ -51,7 +54,7 @@ export async function prefetchCatalog(
   const prefetchOne = async (
     key: string,
     projectType: ModrinthProjectType,
-    loader?: string
+    loader = ""
   ): Promise<void> => {
     try {
       const result = await search("", 24, 0, loader, undefined, "downloads", projectType);

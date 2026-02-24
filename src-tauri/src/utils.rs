@@ -2,11 +2,12 @@ use crate::models::Library;
 use once_cell::sync::Lazy;
 use std::fs;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::Manager;
 use tokio::fs as tokio_fs;
 use zip::write::FileOptions;
 
+use crate::error::AppResult;
 pub fn hide_background_window(cmd: &mut std::process::Command) {
     #[cfg(windows)]
     {
@@ -19,17 +20,31 @@ pub fn hide_background_window(cmd: &mut std::process::Command) {
     }
 }
 
+// Crear directorio si no existe
+pub fn ensure_dir(path: &Path) -> AppResult<()> {
+    if !path.exists() {
+        fs::create_dir_all(path).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    }
+    Ok(())
+}
+
+// Crear directorio async si no existe
+pub async fn ensure_dir_async(path: &Path) -> AppResult<()> {
+    if tokio_fs::try_exists(path).await.unwrap_or(false) {
+        return Ok(());
+    }
+    tokio_fs::create_dir_all(path)
+        .await
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    Ok(())
+}
+
 // Obtener directorio del launcher
 pub fn get_launcher_dir(app_handle: &tauri::AppHandle) -> PathBuf {
-    let mut path = app_handle
-        .path()
-        .app_data_dir()
-        .unwrap_or(PathBuf::from("."));
+    let mut path = app_handle.path().app_data_dir().unwrap_or(PathBuf::from("."));
     path.push(".launcher_mc_files");
-    if !path.exists() {
-        if let Err(e) = fs::create_dir_all(&path) {
-            eprintln!("No se pudo crear dir base: {}", e);
-        }
+    if let Err(e) = ensure_dir(&path) {
+        eprintln!("No se pudo crear dir base: {}", e);
     }
     path
 }
@@ -59,13 +74,10 @@ pub fn detect_os_adoptium() -> (&'static str, &'static str) {
 // Crear cliente HTTP con User-Agent
 pub fn create_client() -> reqwest::Client {
     static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
-        reqwest::Client::builder()
-            .user_agent("NewenLauncher/1.0")
-            .build()
-            .unwrap_or_else(|e| {
-                eprintln!("Error creando HTTP client: {}", e);
-                reqwest::Client::new()
-            })
+        reqwest::Client::builder().user_agent("NewenLauncher/1.0").build().unwrap_or_else(|e| {
+            eprintln!("Error creando HTTP client: {}", e);
+            reqwest::Client::new()
+        })
     });
 
     HTTP_CLIENT.clone()
@@ -120,11 +132,7 @@ pub fn maven_artifact_path(name: &str) -> Option<String> {
     let group = parts[0].replace('.', "/");
     let artifact = parts[1];
     let version = parts[2];
-    let classifier = if parts.len() >= 4 {
-        Some(parts[3])
-    } else {
-        None
-    };
+    let classifier = if parts.len() >= 4 { Some(parts[3]) } else { None };
     let filename = if let Some(classifier) = classifier {
         format!("{artifact}-{version}-{classifier}.{ext}")
     } else {
@@ -140,21 +148,20 @@ pub fn library_artifact_url(lib: &Library) -> Option<String> {
         .as_deref()
         .filter(|s| !s.trim().is_empty())
         .unwrap_or("https://libraries.minecraft.net/");
-    let base = if base.ends_with('/') {
-        base.to_string()
-    } else {
-        format!("{}/", base)
-    };
+    let base = if base.ends_with('/') { base.to_string() } else { format!("{}/", base) };
     Some(format!("{}{}", base, path))
 }
 
 // Extraer nativos de un JAR
-pub fn extract_native_jar(jar_path: &PathBuf, natives_dir: &PathBuf) -> Result<(), String> {
-    let file = fs::File::open(jar_path).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+pub fn extract_native_jar(jar_path: &Path, natives_dir: &Path) -> AppResult<()> {
+    let file =
+        fs::File::open(jar_path).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+        let mut file =
+            archive.by_index(i).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         let name = file.name().to_string();
 
         // Ignorar meta-data
@@ -165,26 +172,28 @@ pub fn extract_native_jar(jar_path: &PathBuf, natives_dir: &PathBuf) -> Result<(
         // Extraer solo dll/so/dylib
         if name.ends_with(".dll") || name.ends_with(".so") || name.ends_with(".dylib") {
             let outpath = natives_dir.join(name);
-            let mut outfile = fs::File::create(&outpath).map_err(|e| e.to_string())?;
-            io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+            let mut outfile = fs::File::create(&outpath)
+                .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+            io::copy(&mut file, &mut outfile)
+                .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         }
     }
     Ok(())
 }
 
-pub async fn append_action_log(app: &tauri::AppHandle, message: &str) -> Result<(), String> {
+pub async fn append_action_log(app: &tauri::AppHandle, message: &str) -> AppResult<()> {
     let base = get_launcher_dir(app);
     let logs_dir = base.join("logs");
     tokio_fs::create_dir_all(&logs_dir)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let log_path = logs_dir.join("actions.log");
     let mut file = tokio_fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&log_path)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -193,63 +202,70 @@ pub async fn append_action_log(app: &tauri::AppHandle, message: &str) -> Result<
     use tokio::io::AsyncWriteExt;
     file.write_all(line.as_bytes())
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
-pub fn zip_dir_to_file(src_dir: &PathBuf, dest_zip: &PathBuf) -> Result<(), String> {
+pub fn zip_dir_to_file(src_dir: &Path, dest_zip: &Path) -> AppResult<()> {
     if !src_dir.exists() {
-        return Err("Directorio a respaldar no existe".to_string());
+        return Err("Directorio a respaldar no existe".to_string().into());
     }
     if let Some(parent) = dest_zip.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        ensure_dir(parent)?;
     }
-    let file = fs::File::create(dest_zip).map_err(|e| e.to_string())?;
+    let file =
+        fs::File::create(dest_zip).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     fn add_dir(
         zip: &mut zip::ZipWriter<fs::File>,
-        base: &PathBuf,
-        path: &PathBuf,
+        base: &Path,
+        path: &Path,
         options: FileOptions,
-    ) -> Result<(), String> {
-        let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
+    ) -> AppResult<()> {
+        let entries =
+            fs::read_dir(path).map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         for entry in entries {
-            let entry = entry.map_err(|e| e.to_string())?;
+            let entry = entry.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
             let entry_path = entry.path();
-            let rel = entry_path.strip_prefix(base).map_err(|e| e.to_string())?;
+            let rel = entry_path
+                .strip_prefix(base)
+                .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
             let name = rel.to_string_lossy().replace('\\', "/");
             if entry_path.is_dir() {
                 zip.add_directory(format!("{}/", name), options)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
                 add_dir(zip, base, &entry_path, options)?;
             } else {
-                zip.start_file(name, options).map_err(|e| e.to_string())?;
-                let mut f = fs::File::open(&entry_path).map_err(|e| e.to_string())?;
-                io::copy(&mut f, zip).map_err(|e| e.to_string())?;
+                zip.start_file(name, options)
+                    .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+                let mut f = fs::File::open(&entry_path)
+                    .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
+                io::copy(&mut f, zip)
+                    .map_err(|e| crate::error::AppError::Message(e.to_string()))?;
             }
         }
         Ok(())
     }
 
     add_dir(&mut zip, src_dir, src_dir, options)?;
-    zip.finish().map_err(|e| e.to_string())?;
+    zip.finish().map_err(|e| crate::error::AppError::Message(e.to_string()))?;
     Ok(())
 }
 
-pub fn prune_old_backups(dir: &PathBuf, keep: usize) -> Result<(), String> {
+pub fn prune_old_backups(dir: &Path, keep: usize) -> AppResult<()> {
     if !dir.exists() {
         return Ok(());
     }
     let mut entries: Vec<(PathBuf, std::time::SystemTime)> = Vec::new();
-    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(dir).map_err(|e| crate::error::AppError::Message(e.to_string()))? {
+        let entry = entry.map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         let path = entry.path();
         if !path.is_file() {
             continue;
         }
-        let meta = entry.metadata().map_err(|e| e.to_string())?;
+        let meta = entry.metadata().map_err(|e| crate::error::AppError::Message(e.to_string()))?;
         let modified = meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
         entries.push((path, modified));
     }
