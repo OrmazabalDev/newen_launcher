@@ -29,9 +29,14 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "msi",
+      "nsis"
+    ],
     "publisher": "Newen",
     "shortDescription": "Newen Launcher - Atacama",
+    "longDescription": "Newen Launcher es un launcher moderno, optimizado y simplificado para Minecraft.",
+    "copyright": "\u00a9 2026 Newen",
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",
@@ -39,7 +44,25 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "icons/installer-header.bmp",
+        "sidebarImage": "icons/installer-sidebar.bmp",
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Newen Launcher",
+        "languages": [
+          "Spanish"
+        ]
+      },
+      "wix": {
+        "bannerPath": "icons/installer-banner.bmp",
+        "dialogImagePath": "icons/installer-dialog.bmp",
+        "language": "es-ES"
+      }
+    }
   },
   "plugins": {
     "updater": {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GameSettings, ProgressPayload, SystemJava, VersionItem, View } from "../types";
 import { inferVersionType } from "../utils/versioning";
 import { useTauriProgress } from "../hooks/useTauriProgress";
@@ -73,6 +73,15 @@ function useAppState() {
     showToast,
     askConfirm,
     setLauncherPresence,
+    onLaunchSuccess: async () => {
+      if (!gameSettings.focusMode) return;
+      try {
+        await getCurrentWindow().setSkipTaskbar(true);
+        await getCurrentWindow().hide();
+      } catch {
+        // Evitar fallos si la ventana no permite ocultarse.
+      }
+    },
   });
 
   const {
@@ -153,21 +162,31 @@ function useAppState() {
     }
   }, [showToast]);
 
-  useFocusMode(
-    gameSettings.focusMode,
-    getCurrentWindow(),
-    { listen },
-    {
-      onGameStart: (pid) => {
-        setGamePid(pid ?? null);
-        void setGamePresence();
-      },
-      onGameExit: () => {
-        setGamePid(null);
-        void setLauncherPresence("Gestionando instancias");
-      },
-    }
+  const appWindow = useMemo(() => getCurrentWindow(), []);
+  const eventDeps = useMemo(() => ({ listen }), []);
+
+  const handleGameStart = useCallback(
+    (pid?: number | null) => {
+      setGamePid(pid ?? null);
+      void setGamePresence();
+    },
+    [setGamePresence]
   );
+
+  const handleGameExit = useCallback(() => {
+    setGamePid(null);
+    void setLauncherPresence("Gestionando instancias");
+  }, [setLauncherPresence]);
+
+  const focusHandlers = useMemo(
+    () => ({
+      onGameStart: handleGameStart,
+      onGameExit: handleGameExit,
+    }),
+    [handleGameExit, handleGameStart]
+  );
+
+  useFocusMode(gameSettings.focusMode, appWindow, eventDeps, focusHandlers);
 
   useAppBoot(
     {

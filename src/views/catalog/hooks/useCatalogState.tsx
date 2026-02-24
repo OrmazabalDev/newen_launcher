@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type {
   CurseForgeMod,
   InstanceContentItem,
@@ -8,7 +8,6 @@ import type {
   ModrinthVersion,
 } from "../../../types";
 import { useCatalogFilters } from "./useCatalogFilters";
-import { useCatalogGallery } from "./useCatalogGallery";
 import { useCatalogToast } from "./useCatalogToast";
 import { useCatalogContext } from "./useCatalogContext";
 import { useCatalogSearch } from "./useCatalogSearch";
@@ -16,6 +15,8 @@ import { useCatalogWorlds } from "./useCatalogWorlds";
 import { useCatalogInstall } from "./useCatalogInstall";
 import { useCatalogDerived } from "./useCatalogDerived";
 import { useCatalogModalBehavior } from "./useCatalogModalBehavior";
+import { useCatalogModalState } from "./useCatalogModalState";
+import { useCatalogAutoSelection } from "./useCatalogAutoSelection";
 import { type ProjectType, type SourceType } from "../constants";
 import type { ConfirmOptions } from "../types";
 
@@ -173,22 +174,25 @@ export function useCatalogState({
     }
   );
 
-  const isModpackModalOpen = projectType === "modpack" && !!selectedProject;
-  const isModModalOpen = projectType !== "modpack" && source === "modrinth" && !!selectedProject;
-  const isCurseModalOpen = projectType === "mod" && source === "curseforge" && !!selectedCurse;
-
-  const gallery = modpackDetails?.gallery ?? [];
-  const galleryCount = gallery.length;
   const {
+    isModpackModalOpen,
+    isModModalOpen,
+    isCurseModalOpen,
     galleryIndex,
     showFullDescription,
+    activeImage,
     handleGalleryPrev,
     handleGalleryNext,
     handleGallerySelect,
     handleShowFullDescription,
     handleHideFullDescription,
-  } = useCatalogGallery({ isOpen: isModpackModalOpen, galleryCount });
-  const activeImage = galleryCount > 0 ? (gallery[galleryIndex % galleryCount] ?? null) : null;
+  } = useCatalogModalState({
+    projectType,
+    source,
+    selectedProject,
+    selectedCurse,
+    modpackDetails,
+  });
 
   const {
     worlds,
@@ -286,25 +290,18 @@ export function useCatalogState({
     onCloseCurseModal: closeCurseModal,
   });
 
-  useEffect(() => {
-    if (requiresInstance && !selectedInstance && eligibleInstances.length > 0) {
-      const first = eligibleInstances[0];
-      if (first) {
-        onSelectInstance(first.id);
-      }
-    }
-  }, [eligibleInstances, selectedInstance, onSelectInstance, requiresInstance]);
-
-  useEffect(() => {
-    if (source !== "modrinth") return;
-    if (!showDetailPanel) return;
-    if (!selectedProject && results.length > 0) {
-      const first = results[0];
-      if (first) {
-        void handleSelectProject(first);
-      }
-    }
-  }, [results, selectedProject, source, projectType, handleSelectProject, showDetailPanel]);
+  useCatalogAutoSelection({
+    requiresInstance,
+    selectedInstance,
+    eligibleInstances,
+    onSelectInstance,
+    source,
+    showDetailPanel,
+    selectedProject,
+    results,
+    handleSelectProject,
+    projectType,
+  });
 
   return {
     query,
@@ -342,9 +339,7 @@ export function useCatalogState({
     categories,
     showCategories,
     modpackLoader,
-    headerTitle: derived.headerTitle,
-    headerSubtitle: derived.headerSubtitle,
-    searchPlaceholder: derived.searchPlaceholder,
+    ...derived,
     showProjectTabs,
     showSourceToggle,
     requiresInstance,
@@ -352,45 +347,13 @@ export function useCatalogState({
     selectedInstance,
     loader,
     projectTypeLabel,
-    selectedVersion: derived.selectedVersion,
-    availableLoaders: derived.availableLoaders,
-    loaderLabel: derived.loaderLabel,
-    versionLabel: derived.versionLabel,
-    loaderChip: derived.loaderChip,
-    versionChip: derived.versionChip,
-    noEligibleInstances: derived.noEligibleInstances,
-    gateTitle: derived.gateTitle,
-    gateMessage: derived.gateMessage,
+    // derived values
     contentKind,
-    installedProjectIds: derived.installedProjectIds,
-    installedVersionIds: derived.installedVersionIds,
-    disabledProjectIds: derived.disabledProjectIds,
     showDetailPanel,
     isModpackModalOpen,
     isModModalOpen,
     isCurseModalOpen,
-    gallery: derived.gallery,
-    galleryCount: derived.galleryCount,
     activeImage,
-    modpackPreview: derived.modpackPreview,
-    showDescriptionToggle: derived.showDescriptionToggle,
-    progressText: derived.progressText,
-    isProjectInstalled: derived.isProjectInstalled,
-    isProjectDisabled: derived.isProjectDisabled,
-    isVersionInstalled: derived.isVersionInstalled,
-    installButtonContent: derived.installButtonContent,
-    showCurseforgeBanner: derived.showCurseforgeBanner,
-    modpackButtonContent: derived.modpackButtonContent,
-    installDisabled: derived.installDisabled,
-    installDisabledReason: derived.installDisabledReason,
-    datapackImportDisabled: derived.datapackImportDisabled,
-    datapackImportDisabledReason: derived.datapackImportDisabledReason,
-    modpackInstallDisabledReason: derived.modpackInstallDisabledReason,
-    showCatalogSkeleton: derived.showCatalogSkeleton,
-    showEmptyState: derived.showEmptyState,
-    emptyTitle: derived.emptyTitle,
-    emptyMessage: derived.emptyMessage,
-    instanceInfo: derived.instanceInfo,
     toggleCategory,
     clearCategories,
     handleSearch,

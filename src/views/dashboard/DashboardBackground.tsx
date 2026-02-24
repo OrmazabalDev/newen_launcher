@@ -3,8 +3,8 @@ export function DashboardBackground() {
     <div className="absolute inset-0 z-0">
       <div className="absolute inset-0 bg-[#0f0f13]" />
       <img
-        src="/hero-bg.svg"
-        className="w-full h-full object-cover opacity-35"
+        src="/fondo.png"
+        className="w-full h-full object-cover opacity-45"
         alt=""
         aria-hidden="true"
       />

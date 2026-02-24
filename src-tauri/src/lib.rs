@@ -27,6 +27,11 @@ use state::AppState;
 use std::time::Duration;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+#[cfg(all(desktop, feature = "tray-icon"))]
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+#[cfg(all(desktop, feature = "tray-icon"))]
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
 // --- PUNTO DE ENTRADA PRINCIPAL ---
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -38,6 +43,76 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             let _ = app.handle().plugin(tauri_plugin_updater::Builder::new().build());
+
+            #[cfg(all(desktop, feature = "tray-icon"))]
+            {
+                let show_item = MenuItem::with_id(
+                    app,
+                    "tray_show",
+                    "Mostrar launcher",
+                    true,
+                    None::<&str>,
+                )?;
+                let hide_item = MenuItem::with_id(
+                    app,
+                    "tray_hide",
+                    "Ocultar launcher",
+                    true,
+                    None::<&str>,
+                )?;
+                let quit_item =
+                    MenuItem::with_id(app, "tray_quit", "Salir", true, None::<&str>)?;
+                let separator = PredefinedMenuItem::separator(app)?;
+                let menu = Menu::with_items(app, &[&show_item, &hide_item, &separator, &quit_item])?;
+
+                let mut tray_builder = TrayIconBuilder::new()
+                    .menu(&menu)
+                    .tooltip("Newen Launcher")
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(|app, event| match event.id().as_ref() {
+                        "tray_show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.set_skip_taskbar(false);
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "tray_hide" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.set_skip_taskbar(true);
+                                let _ = window.hide();
+                            }
+                        }
+                        "tray_quit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        let app = tray.app_handle();
+                        match event {
+                            TrayIconEvent::DoubleClick { .. }
+                            | TrayIconEvent::Click {
+                                button: MouseButton::Left,
+                                button_state: MouseButtonState::Up,
+                                ..
+                            } => {
+                                if let Some(window) = app.get_webview_window("main") {
+                                    let _ = window.set_skip_taskbar(false);
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                }
+                            }
+                            _ => {}
+                        }
+                    });
+
+                if let Some(icon) = app.default_window_icon().cloned() {
+                    tray_builder = tray_builder.icon(icon);
+                }
+
+                let _tray = tray_builder.build(app)?;
+            }
 
             if let Some(main) = app.get_webview_window("main") {
                 let _ = main.hide();

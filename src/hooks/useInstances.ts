@@ -50,6 +50,7 @@ export interface UseInstancesOptions {
   showToast: (message: string, kind?: ToastKind) => void;
   askConfirm: (options: ConfirmOptions) => Promise<boolean>;
   setLauncherPresence: (state: string) => Promise<void>;
+  onLaunchSuccess?: (instance: InstanceSummary) => void | Promise<void>;
 }
 
 export interface UseInstancesResult {
@@ -85,6 +86,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
     showToast,
     askConfirm,
     setLauncherPresence,
+    onLaunchSuccess,
   } = options;
 
   const [instances, setInstances] = useState<InstanceSummary[]>([]);
@@ -151,6 +153,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
 
         onGlobalStatus(`Lanzando ${versionId}...`);
         await api.launchGame(versionId, gameSettings, instance.id);
+        await onLaunchSuccess?.(instance);
         setErrorInstanceIds((prev) => {
           const next = new Set(prev);
           next.delete(instance.id);
@@ -186,6 +189,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
       onProgressChange,
       setLauncherPresence,
       showToast,
+      onLaunchSuccess,
     ]
   );
 

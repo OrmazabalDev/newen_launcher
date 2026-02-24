@@ -10,7 +10,7 @@
     font-family: "Inter", sans-serif;
     background-color: #121212;
     color: #ffffff;
-    user-select: auto;
+    user-select: none;
   }
 
   h1,
@@ -31,13 +31,6 @@
   [contenteditable="true"],
   .select-text {
     user-select: text;
-  }
-
-  button,
-  label,
-  select,
-  option {
-    user-select: none;
   }
 
   :focus-visible {

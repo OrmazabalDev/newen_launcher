@@ -5,10 +5,12 @@ export interface FocusModeWindowApi {
   isFullscreen: () => Promise<boolean>;
   setFullscreen: (value: boolean) => Promise<void>;
   minimize: () => Promise<void>;
+  hide: () => Promise<void>;
   show: () => Promise<void>;
   unminimize: () => Promise<void>;
   maximize: () => Promise<void>;
   setFocus: () => Promise<void>;
+  setSkipTaskbar?: (skip: boolean) => Promise<void>;
 }
 
 export interface FocusModeDependencies {
@@ -16,7 +18,7 @@ export interface FocusModeDependencies {
 }
 
 /**
- * Maneja el Focus Mode: minimizar al iniciar el juego y restaurar al salir.
+ * Maneja el Focus Mode: ocultar el launcher al iniciar el juego y restaurar al salir.
  */
 export function useFocusMode(
   isEnabled: boolean,
@@ -40,7 +42,10 @@ export function useFocusMode(
         if (wasFullscreen.current) {
           await windowApi.setFullscreen(false);
         }
-        await windowApi.minimize();
+        if (windowApi.setSkipTaskbar) {
+          await windowApi.setSkipTaskbar(true);
+        }
+        await windowApi.hide();
       } catch {
         // Errores de ventana no deben romper el flujo.
       }
@@ -52,8 +57,10 @@ export function useFocusMode(
         options?.onGameExit?.();
         if (!isEnabled) return;
         try {
+          if (windowApi.setSkipTaskbar) {
+            await windowApi.setSkipTaskbar(false);
+          }
           await windowApi.show();
-          await windowApi.unminimize();
           if (wasFullscreen.current) {
             await windowApi.setFullscreen(true);
           } else if (wasMaximized.current) {
