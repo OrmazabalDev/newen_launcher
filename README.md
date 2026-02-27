@@ -3,11 +3,6 @@
 Newen Launcher es un launcher moderno para Minecraft enfocado en rendimiento, orden y una experiencia limpia para jugar.  
 Early Access: estamos mejorando rapido y escuchando feedback en el Discord oficial.
 
-## Descargas
-Las builds oficiales estan en **Releases**:
-- `Newen Launcher_1.1.x_x64-setup.exe` (recomendado)
-- `Newen Launcher_1.1.x_x64_en-US.msi`
-
 ## Por que Newen
 - Menos pasos para jugar, mas claridad en instancias.
 - Catalogo integrado y gestion simple de contenido.
