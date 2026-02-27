@@ -152,6 +152,8 @@ export function CatalogResultsGrid({
                         src={hit.icon_url}
                         alt={hit.title}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">
@@ -207,6 +209,8 @@ export function CatalogResultsGrid({
                       src={hit.logo.thumbnail_url}
                       alt={hit.name}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">

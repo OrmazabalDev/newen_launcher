@@ -18,7 +18,8 @@ export function useCatalogFilters({
   const [activeQuery, setActiveQuery] = useState("");
   const [source, setSource] = useState<SourceType>(lockSource ?? "modrinth");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(24);
+  const initialSize = lockedProjectType === "modpack" || initialProjectType === "modpack" ? 16 : 24;
+  const [pageSize, setPageSize] = useState(initialSize);
   const [index, setIndex] = useState<"relevance" | "downloads" | "newest" | "updated">("downloads");
   const [projectType, setProjectType] = useState<ProjectType>(
     lockedProjectType ?? initialProjectType

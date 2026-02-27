@@ -8,6 +8,51 @@ import type {
 import * as catalogApi from "../api";
 import type { ModpackLoaderFilter, ProjectType, SourceType } from "../constants";
 
+type ModrinthCacheEntry = {
+  ts: number;
+  hits: ModrinthProjectHit[];
+  total: number;
+};
+
+const MODRINTH_CACHE_TTL_MS = 15 * 60 * 1000;
+const PREFETCH_TTL_MS = 30 * 60 * 1000;
+const MODRINTH_CACHE_KEY_PREFIX = "launcher_catalog_cache_v1_";
+
+const hashKey = (input: string): string => {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 33) ^ input.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(36);
+};
+
+const readCache = (key: string, maxAgeMs: number): ModrinthCacheEntry | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ModrinthCacheEntry>;
+    if (!parsed || typeof parsed.ts !== "number") return null;
+    if (Date.now() - parsed.ts > maxAgeMs) return null;
+    if (!Array.isArray(parsed.hits)) return null;
+    return {
+      ts: parsed.ts,
+      hits: parsed.hits as ModrinthProjectHit[],
+      total: typeof parsed.total === "number" ? parsed.total : parsed.hits.length,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const writeCache = (key: string, hits: ModrinthProjectHit[], total: number): void => {
+  try {
+    const payload: ModrinthCacheEntry = { ts: Date.now(), hits, total };
+    localStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    // Si el storage no esta disponible o esta lleno, se ignora.
+  }
+};
+
 export type CatalogSearchState = {
   results: ModrinthProjectHit[];
   setResults: (items: ModrinthProjectHit[]) => void;
@@ -186,6 +231,42 @@ export function useCatalogSearch(state: CatalogSearchState, args: CatalogSearchA
       return;
     }
 
+    if (source === "modrinth") {
+      const prefetchKey =
+        projectType === "modpack" && !q && page === 0
+          ? modpackLoader !== "any"
+            ? `launcher_catalog_prefetch_modpacks_${modpackLoader}_v1`
+            : "launcher_catalog_prefetch_modpacks_any_v1"
+          : null;
+      if (prefetchKey) {
+        const prefetched = readCache(prefetchKey, PREFETCH_TTL_MS);
+        if (prefetched && prefetched.hits.length > 0) {
+          setResults(prefetched.hits);
+          setTotalHits(prefetched.total);
+          setStatus("");
+        }
+      }
+
+      const cachePayload = {
+        query: q,
+        offset,
+        pageSize,
+        index,
+        projectType,
+        loaderFilter,
+        gameVersionFilter,
+        categories: categoryFilters ?? [],
+      };
+      const cacheKey =
+        MODRINTH_CACHE_KEY_PREFIX + hashKey(JSON.stringify(cachePayload));
+      const cached = readCache(cacheKey, MODRINTH_CACHE_TTL_MS);
+      if (cached && cached.hits.length > 0) {
+        setResults(cached.hits);
+        setTotalHits(cached.total);
+        setStatus("");
+      }
+    }
+
     const run = async () => {
       setLoading(true);
       setStatus(
@@ -222,6 +303,19 @@ export function useCatalogSearch(state: CatalogSearchState, args: CatalogSearchA
         setSelectedProject(null);
         setVersions([]);
         setStatus("");
+        const cachePayload = {
+          query: q,
+          offset,
+          pageSize,
+          index,
+          projectType,
+          loaderFilter,
+          gameVersionFilter,
+          categories: categoryFilters ?? [],
+        };
+        const cacheKey =
+          MODRINTH_CACHE_KEY_PREFIX + hashKey(JSON.stringify(cachePayload));
+        writeCache(cacheKey, resp.hits, resp.total_hits || 0);
       } catch (e: unknown) {
         if (cancelled) return;
         if (source !== "modrinth") {
