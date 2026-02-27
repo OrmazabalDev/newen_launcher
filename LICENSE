@@ -1,38 +1,21 @@
-NEWEN LAUNCHER PROPRIETARY LICENSE
+MIT License
 
-Copyright (c) 2026 Newen Launcher. All rights reserved.
+Copyright (c) 2026 Diego Ormazabal
 
-This software and its source code are proprietary and confidential. No
-license is granted to use, copy, modify, merge, publish, distribute,
-sublicense, or sell any part of the Software or its source code, except as
-expressly stated in this license.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-PERMITTED USE
-You may use the Software for personal, non-commercial purposes only.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-RESTRICTIONS
-You may not:
-1. Copy or redistribute the Software or any part of it.
-2. Modify, adapt, translate, or create derivative works.
-3. Reverse engineer, decompile, or disassemble the Software.
-4. Remove or alter any copyright, trademark, or other proprietary notices.
-
-OWNERSHIP
-The Software is licensed, not sold. All title, ownership, and intellectual
-property rights remain with Newen Launcher.
-
-TERMINATION
-This license is effective until terminated. It terminates automatically if
-you fail to comply with any term. Upon termination, you must stop all use of
-the Software and destroy all copies in your possession.
-
-DISCLAIMER OF WARRANTY
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
-
-LIMITATION OF LIABILITY
-IN NO EVENT SHALL NEWEN LAUNCHER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
-FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
