@@ -34,6 +34,10 @@ src-tauri/target/
 *.log
 *.tmp
 
+# Docs
+*.md
+!README.md
+
 # Certs / keys
 *.pfx
 *.p12
