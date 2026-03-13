@@ -13,6 +13,7 @@ import { SettingsPerformanceSection } from "./settings/SettingsPerformanceSectio
 import { SettingsUiSection } from "./settings/SettingsUiSection";
 import { SettingsBehaviorSection } from "./settings/SettingsBehaviorSection";
 import { SettingsCacheSection } from "./settings/SettingsCacheSection";
+import { SettingsChangelogSection } from "./settings/SettingsChangelogSection";
 import { SettingsDiagnosticsSection } from "./settings/SettingsDiagnosticsSection";
 import { SettingsResetSection } from "./settings/SettingsResetSection";
 
@@ -108,6 +109,8 @@ export function SettingsView({
         </div>
 
         <div className="space-y-6">
+          <SettingsChangelogSection />
+
           <SettingsUiSection uiScale={uiScale} scales={UI_SCALES} onChangeUiScale={onChangeUiScale} />
 
           <SettingsBehaviorSection settings={settings} onChange={onChange} />

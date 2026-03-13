@@ -131,6 +131,8 @@ export function useCatalogSearch(state: CatalogSearchState, args: CatalogSearchA
     setLoading,
   } = args;
 
+  const effectiveInstanceId = requiresInstance ? selectedInstanceId : undefined;
+
   const categoryFilters = useMemo(() => {
     if (projectType === "modpack") {
       return modpackLoader !== "any" ? [modpackLoader] : undefined;
@@ -201,7 +203,7 @@ export function useCatalogSearch(state: CatalogSearchState, args: CatalogSearchA
     clearInstalledItems();
   }, [
     source,
-    selectedInstanceId,
+    effectiveInstanceId,
     loader,
     gameVersion,
     projectType,
@@ -219,7 +221,7 @@ export function useCatalogSearch(state: CatalogSearchState, args: CatalogSearchA
   ]);
 
   useEffect(() => {
-    if (requiresInstance && !selectedInstanceId) return;
+    if (requiresInstance && !effectiveInstanceId) return;
     const q = activeQuery.trim();
     const offset = page * pageSize;
     let cancelled = false;
@@ -264,6 +266,13 @@ export function useCatalogSearch(state: CatalogSearchState, args: CatalogSearchA
         setResults(cached.hits);
         setTotalHits(cached.total);
         setStatus("");
+      }
+
+      const shouldSkipNetwork =
+        projectType === "modpack" && !q && page === 0 && Boolean(cached);
+      if (shouldSkipNetwork) {
+        setLoading(false);
+        return;
       }
     }
 
@@ -345,7 +354,7 @@ export function useCatalogSearch(state: CatalogSearchState, args: CatalogSearchA
     pageSize,
     index,
     source,
-    selectedInstanceId,
+    effectiveInstanceId,
     loader,
     gameVersion,
     projectType,

@@ -24,6 +24,7 @@ mod worlds;
 
 use commands::*;
 use state::AppState;
+#[cfg(debug_assertions)]
 use std::time::Duration;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
