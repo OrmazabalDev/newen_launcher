@@ -9,7 +9,6 @@
   desarrollado en Chile y pensado para la comunidad hispanohablante.
 </p>
 
-<<<<<<< HEAD
 <p align="center">
   <img src="https://img.shields.io/badge/status-Early%20Access-f59e0b?style=for-the-badge" alt="Estado Early Access" />
   <img src="https://img.shields.io/badge/platform-Windows-2563eb?style=for-the-badge" alt="Plataforma Windows" />
@@ -33,8 +32,6 @@
 
 Early Access: estamos mejorando rapido, puliendo la experiencia y ajustando el producto para que el launcher sea mas claro, confiable y simple de usar.
 
-=======
->>>>>>> 37887f01f8999573f979df82b19d752e64decc55
 ## Por que Newen
 
 Los launchers mas conocidos ya cubren instancias, loaders y modpacks. Newen no intenta ganar por cantidad de funciones, sino por experiencia:
