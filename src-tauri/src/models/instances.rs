@@ -72,6 +72,15 @@ pub struct InstanceCreateRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InstanceCreateV2Request {
+    pub name: String,
+    pub version: String,
+    pub loader: String,
+    pub thumbnail: Option<String>,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InstanceUpdateRequest {
     pub name: Option<String>,
     pub thumbnail: Option<String>,

@@ -29,11 +29,12 @@ pub async fn start_ms_login_impl(_app: &AppHandle) -> AppResult<DeviceCodeRespon
         .map_err(|e| AppError::Message(e.to_string()))?;
 
     if !res.status().is_success() {
-        return Err(format!("Error Microsoft: {}", res.status()).into());
+        return Err(format!("Error al iniciar sesion con Microsoft: {}", res.status()).into());
     }
 
-    let device =
+    let mut device =
         res.json::<DeviceCodeResponse>().await.map_err(|e| AppError::Message(e.to_string()))?;
+    device.message = Some("Ingresa el codigo en tu navegador para continuar.".to_string());
     Ok(device)
 }
 
@@ -42,6 +43,24 @@ pub async fn poll_ms_login_impl(
     device_code: String,
     profile_cache: &Mutex<Option<MinecraftProfile>>,
 ) -> AppResult<String> {
+    let profile = poll_ms_login_profile_impl(app, device_code, profile_cache).await?;
+
+    let result = serde_json::json!({
+        "status": "success",
+        "id": profile.id,
+        "name": profile.name,
+        "is_offline": false,
+        "skin_url": profile.skin_url,
+        "cape_urls": profile.cape_urls
+    });
+    Ok(result.to_string())
+}
+
+pub async fn poll_ms_login_profile_impl(
+    app: &AppHandle,
+    device_code: String,
+    profile_cache: &Mutex<Option<MinecraftProfile>>,
+) -> AppResult<MinecraftProfile> {
     let client = reqwest::Client::new();
     let res = client
         .post(MS_TOKEN_URL)
@@ -59,7 +78,7 @@ pub async fn poll_ms_login_impl(
         if let Some(err) = err {
             return Err(err.error.into());
         }
-        return Err("microsoft_login_failed".to_string().into());
+        return Err("No se pudo iniciar sesion con Microsoft.".to_string().into());
     }
 
     let token =
@@ -89,15 +108,7 @@ pub async fn poll_ms_login_impl(
         *cache = Some(stored_profile);
     }
 
-    let result = serde_json::json!({
-        "status": "success",
-        "id": profile.id,
-        "name": profile.name,
-        "is_offline": false,
-        "skin_url": profile.skin_url,
-        "cape_urls": profile.cape_urls
-    });
-    Ok(result.to_string())
+    Ok(profile)
 }
 
 pub(super) async fn refresh_ms_token(refresh_token: &str) -> AppResult<MSTokenFullResponse> {
@@ -115,7 +126,7 @@ pub(super) async fn refresh_ms_token(refresh_token: &str) -> AppResult<MSTokenFu
         .map_err(|e| AppError::Message(e.to_string()))?;
 
     if !res.status().is_success() {
-        return Err(format!("Error al refrescar sesion Microsoft: {}", res.status()).into());
+        return Err(format!("No se pudo actualizar la sesion de Microsoft: {}", res.status()).into());
     }
     res.json::<MSTokenFullResponse>().await.map_err(|e| AppError::Message(e.to_string()))
 }

@@ -172,6 +172,7 @@ pub fn run() {
             read_instance_report,
             get_runtime_metrics,
             create_instance,
+            create_instance_v2,
             update_instance,
             delete_instance,
             open_instance_folder,
@@ -195,11 +196,15 @@ pub fn run() {
             curseforge_search,
             // Auth
             login_offline,
+            login_offline_v2,
             start_ms_login,
             poll_ms_login,
+            poll_ms_login_v2,
             restore_ms_session,
+            restore_ms_session_v2,
             logout_session,
             refresh_ms_profile,
+            refresh_ms_profile_v2,
             // Forge
             install_forge,
             install_fabric,

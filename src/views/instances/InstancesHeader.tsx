@@ -25,7 +25,7 @@ export function InstancesHeader({
     <div className="sticky top-0 z-20 bg-[#0f0f13]/80 backdrop-blur-xl border-b border-white/5 px-8 py-6">
       <div className="flex items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold text-white">Mis instancias</h2>
+          <h2 className="text-3xl font-bold text-white">Instancias</h2>
           <p className="text-gray-400 text-sm mt-1">Gestiona y organiza tus perfiles de juego</p>
         </div>
         <div className="flex items-center gap-4">

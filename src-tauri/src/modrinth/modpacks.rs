@@ -1,14 +1,10 @@
-use crate::downloader::{
-    download_client_impl, download_game_files_impl, get_version_metadata_impl,
-};
 use crate::error::{AppError, AppResult};
-use crate::fabric::install_fabric_impl;
-use crate::forge::install_forge_impl;
-use crate::instances::{create_instance_impl, refresh_instance_mods_cache};
+use crate::instances::{
+    create_instance_impl, prepare_instance_version_impl, refresh_instance_mods_cache,
+};
 use crate::models::{
     InstanceCreateRequest, InstanceSummary, ProgressPayload, VersionManifest, VersionMetadata,
 };
-use crate::neoforge::install_neoforge_impl;
 use crate::repair::repair_instance_impl;
 use crate::utils::{append_action_log, get_launcher_dir};
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
@@ -66,48 +62,26 @@ pub async fn modrinth_install_modpack_impl(
         "vanilla"
     };
 
-    let resolved_version = if loader == "neoforge" {
-        install_neoforge_impl(
-            app,
-            mc_version.clone(),
-            neoforge_dep.clone(),
-            manifest_cache,
-            metadata_cache,
-        )
-        .await
-        .map_err(|e| AppError::Message(format!("Instalar NeoForge: {}", e)))?
+    let loader_override = if loader == "neoforge" {
+        neoforge_dep.clone()
     } else if loader == "forge" {
-        install_forge_impl(
-            app,
-            mc_version.clone(),
-            forge_dep.clone(),
-            manifest_cache,
-            metadata_cache,
-        )
-        .await
-        .map_err(|e| AppError::Message(format!("Instalar Forge: {}", e)))?
+        forge_dep.clone()
     } else if loader == "fabric" {
-        install_fabric_impl(
-            app,
-            mc_version.clone(),
-            fabric_dep.clone(),
-            manifest_cache,
-            metadata_cache,
-        )
-        .await
-        .map_err(|e| AppError::Message(format!("Instalar Fabric: {}", e)))?
+        fabric_dep.clone()
     } else {
-        get_version_metadata_impl(app, mc_version.clone(), manifest_cache, metadata_cache)
-            .await
-            .map_err(|e| AppError::Message(format!("Metadata Minecraft: {}", e)))?;
-        download_client_impl(app, mc_version.clone(), metadata_cache)
-            .await
-            .map_err(|e| AppError::Message(format!("Descargar cliente: {}", e)))?;
-        download_game_files_impl(app, mc_version.clone(), metadata_cache)
-            .await
-            .map_err(|e| AppError::Message(format!("Descargar assets: {}", e)))?;
-        mc_version.clone()
+        None
     };
+
+    let (resolved_loader, resolved_version) = prepare_instance_version_impl(
+        app,
+        mc_version.clone(),
+        loader.to_string(),
+        loader_override,
+        manifest_cache,
+        metadata_cache,
+    )
+    .await
+    .map_err(|e| AppError::Message(format!("Preparar instancia base: {}", e)))?;
 
     let instance_name = if name.trim().is_empty() {
         format!("Modpack {}", mc_version)
@@ -118,7 +92,7 @@ pub async fn modrinth_install_modpack_impl(
     let req = InstanceCreateRequest {
         name: instance_name,
         version: resolved_version,
-        loader: loader.to_string(),
+        loader: resolved_loader,
         thumbnail,
         tags: Some(vec!["modpack".to_string()]),
     };
@@ -218,48 +192,26 @@ pub async fn import_modpack_mrpack_impl(
         "vanilla"
     };
 
-    let resolved_version = if loader == "neoforge" {
-        install_neoforge_impl(
-            app,
-            mc_version.clone(),
-            neoforge_dep.clone(),
-            manifest_cache,
-            metadata_cache,
-        )
-        .await
-        .map_err(|e| AppError::Message(format!("Instalar NeoForge: {}", e)))?
+    let loader_override = if loader == "neoforge" {
+        neoforge_dep.clone()
     } else if loader == "forge" {
-        install_forge_impl(
-            app,
-            mc_version.clone(),
-            forge_dep.clone(),
-            manifest_cache,
-            metadata_cache,
-        )
-        .await
-        .map_err(|e| AppError::Message(format!("Instalar Forge: {}", e)))?
+        forge_dep.clone()
     } else if loader == "fabric" {
-        install_fabric_impl(
-            app,
-            mc_version.clone(),
-            fabric_dep.clone(),
-            manifest_cache,
-            metadata_cache,
-        )
-        .await
-        .map_err(|e| AppError::Message(format!("Instalar Fabric: {}", e)))?
+        fabric_dep.clone()
     } else {
-        get_version_metadata_impl(app, mc_version.clone(), manifest_cache, metadata_cache)
-            .await
-            .map_err(|e| AppError::Message(format!("Metadata Minecraft: {}", e)))?;
-        download_client_impl(app, mc_version.clone(), metadata_cache)
-            .await
-            .map_err(|e| AppError::Message(format!("Descargar cliente: {}", e)))?;
-        download_game_files_impl(app, mc_version.clone(), metadata_cache)
-            .await
-            .map_err(|e| AppError::Message(format!("Descargar assets: {}", e)))?;
-        mc_version.clone()
+        None
     };
+
+    let (resolved_loader, resolved_version) = prepare_instance_version_impl(
+        app,
+        mc_version.clone(),
+        loader.to_string(),
+        loader_override,
+        manifest_cache,
+        metadata_cache,
+    )
+    .await
+    .map_err(|e| AppError::Message(format!("Preparar instancia base: {}", e)))?;
 
     let instance_name =
         name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).unwrap_or_else(|| {
@@ -269,7 +221,7 @@ pub async fn import_modpack_mrpack_impl(
     let req = InstanceCreateRequest {
         name: instance_name,
         version: resolved_version,
-        loader: loader.to_string(),
+        loader: resolved_loader,
         thumbnail: None,
         tags: Some(vec!["modpack".to_string()]),
     };

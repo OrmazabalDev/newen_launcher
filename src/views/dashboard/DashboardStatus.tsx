@@ -1,6 +1,39 @@
 import { cn } from "../../utils/cn";
 import { statusActionButton, statusBox } from "./styles";
 
+function buildRecoveryGuide(statusText: string, reportPath: string, prelaunchPath: string) {
+  const lower = statusText.toLowerCase();
+
+  if (lower.includes("reparacion automatica aplicada")) {
+    return {
+      title: "Detectamos un problema e intentamos repararlo automaticamente.",
+      nextStep:
+        "Intenta iniciar de nuevo. Si vuelve a fallar, genera o comparte un reporte de diagnostico.",
+    };
+  }
+
+  if (lower.includes("reparacion automatica fallo")) {
+    return {
+      title: "No pudimos reparar esta instancia automaticamente.",
+      nextStep:
+        "Prueba primero con Reparar instancia. Si el problema sigue, comparte un reporte de diagnostico o el log.",
+    };
+  }
+
+  if (reportPath || prelaunchPath) {
+    return {
+      title: "No pudimos iniciar esta instancia correctamente.",
+      nextStep:
+        "Prueba primero con Reparar instancia. Si vuelve a fallar, copia el reporte o el log para revisarlo.",
+    };
+  }
+
+  return {
+    title: "No pudimos iniciar esta instancia correctamente.",
+    nextStep: "Prueba primero con Reparar instancia y vuelve a intentarlo.",
+  };
+}
+
 export function DashboardStatus({
   isProcessing,
   statusText,
@@ -28,6 +61,10 @@ export function DashboardStatus({
 }) {
   if (!statusText) return null;
 
+  const recoveryGuide = isError && hasInstance
+    ? buildRecoveryGuide(statusText, reportPath, prelaunchPath)
+    : null;
+
   if (isProcessing) {
     return (
       <div className={cn(statusBox({ tone: "neutral" }), "mt-6")} aria-live="polite">
@@ -47,6 +84,12 @@ export function DashboardStatus({
       >
         {statusText}
       </div>
+      {recoveryGuide && (
+        <div className="rounded-xl border border-amber-900/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-100">
+          <div className="font-medium">{recoveryGuide.title}</div>
+          <div className="mt-1 text-xs text-amber-200/80">{recoveryGuide.nextStep}</div>
+        </div>
+      )}
       {isError && hasInstance && (
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={onRepairInstance} className={statusActionButton({ tone: "neutral" })}>
@@ -60,7 +103,7 @@ export function DashboardStatus({
               }}
               className={statusActionButton({ tone: "neutral" })}
             >
-              Copiar reporte
+              Copiar reporte de diagnostico
             </button>
           )}
           {reportPath && (
@@ -71,7 +114,7 @@ export function DashboardStatus({
               aria-disabled={isUploadingReport}
               className={cn(statusActionButton({ tone: "info" }), "disabled:opacity-60 disabled:cursor-not-allowed")}
             >
-              {isUploadingReport ? "Subiendo..." : "Subir reporte"}
+              {isUploadingReport ? "Subiendo reporte..." : "Subir reporte"}
             </button>
           )}
           {prelaunchPath && (

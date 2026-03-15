@@ -22,7 +22,7 @@ export function SettingsBehaviorSection({
           checked={settings.focusMode}
           onChange={(e) => onChange({ ...settings, focusMode: e.target.checked })}
         />
-        <span className="text-sm text-gray-100">Focus Mode (minimizar al iniciar)</span>
+        <span className="text-sm text-gray-100">Modo enfoque (minimizar al iniciar)</span>
       </label>
       <label className={cn(toggleRow(), "mt-3")}>
         <input

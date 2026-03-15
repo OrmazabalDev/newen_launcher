@@ -5,29 +5,50 @@ mod session;
 pub use ms_flow::{poll_ms_login_impl, start_ms_login_impl};
 
 use crate::error::AppResult;
-use crate::models::MinecraftProfile;
+use crate::models::{AuthProfileV2, MinecraftProfile};
 use std::sync::Mutex;
 use tauri::AppHandle;
 use uuid::Uuid;
 
-use ms_flow::{fetch_mc_profile, login_minecraft_with_ms, refresh_ms_token};
+use ms_flow::{
+    fetch_mc_profile, login_minecraft_with_ms, poll_ms_login_profile_impl, refresh_ms_token,
+};
 use session::{clear_session, load_session, now_unix, save_session};
 
-// Lógica de Login Offline
-pub async fn login_offline_impl(
+fn map_auth_profile_v2(profile: &MinecraftProfile) -> AuthProfileV2 {
+    AuthProfileV2::from(profile)
+}
+
+fn serialize_auth_profile_v1(profile: &MinecraftProfile, access_token: Option<&str>) -> String {
+    let mut result = serde_json::json!({
+        "status": "success",
+        "id": profile.id,
+        "name": profile.name,
+        "is_offline": profile.is_offline,
+        "skin_url": profile.skin_url,
+        "cape_urls": profile.cape_urls
+    });
+
+    if let Some(token) = access_token {
+        result["access_token"] = serde_json::Value::String(token.to_string());
+    }
+
+    result.to_string()
+}
+
+async fn login_offline_profile_impl(
     username: String,
     profile_cache: &Mutex<Option<MinecraftProfile>>,
-) -> AppResult<String> {
+) -> AppResult<MinecraftProfile> {
     if username.trim().len() < 3 {
         return Err("El nombre de usuario debe tener al menos 3 caracteres.".to_string().into());
     }
 
     let uuid = Uuid::new_v3(&Uuid::NAMESPACE_OID, username.as_bytes());
-    let access_token = "offline_access_token";
 
     let profile = MinecraftProfile {
         id: uuid.to_string().replace("-", ""),
-        name: username.clone(),
+        name: username,
         is_offline: true,
         skin_url: None,
         cape_urls: Vec::new(),
@@ -42,23 +63,32 @@ pub async fn login_offline_impl(
         *cache = Some(profile.clone());
     }
 
-    let result = serde_json::json!({
-        "status": "success",
-        "access_token": access_token,
-        "id": profile.id,
-        "name": profile.name,
-        "is_offline": true,
-        "skin_url": profile.skin_url,
-        "cape_urls": profile.cape_urls
-    });
-
-    Ok(result.to_string())
+    Ok(profile)
 }
 
-pub async fn restore_ms_session_impl(
-    app: &AppHandle,
+pub async fn login_offline_impl(
+    username: String,
     profile_cache: &Mutex<Option<MinecraftProfile>>,
 ) -> AppResult<String> {
+    let profile = login_offline_profile_impl(username, profile_cache).await?;
+    Ok(serialize_auth_profile_v1(
+        &profile,
+        Some("offline_access_token"),
+    ))
+}
+
+pub async fn login_offline_v2_impl(
+    username: String,
+    profile_cache: &Mutex<Option<MinecraftProfile>>,
+) -> AppResult<AuthProfileV2> {
+    let profile = login_offline_profile_impl(username, profile_cache).await?;
+    Ok(map_auth_profile_v2(&profile))
+}
+
+async fn restore_ms_session_profile_impl(
+    app: &AppHandle,
+    profile_cache: &Mutex<Option<MinecraftProfile>>,
+) -> AppResult<MinecraftProfile> {
     let mut session = load_session(app).await?;
     let now = now_unix();
     if session.mc_expires_at <= now + 30 {
@@ -83,15 +113,7 @@ pub async fn restore_ms_session_impl(
         stored_profile.user_type = Some("msa".to_string());
         *cache = Some(stored_profile);
 
-        let result = serde_json::json!({
-            "status": "success",
-            "id": profile.id,
-            "name": profile.name,
-            "is_offline": false,
-            "skin_url": profile.skin_url,
-            "cape_urls": profile.cape_urls
-        });
-        return Ok(result.to_string());
+        return Ok(profile);
     }
 
     let profile = MinecraftProfile {
@@ -111,15 +133,23 @@ pub async fn restore_ms_session_impl(
         *cache = Some(profile.clone());
     }
 
-    let result = serde_json::json!({
-        "status": "success",
-        "id": profile.id,
-        "name": profile.name,
-        "is_offline": false,
-        "skin_url": profile.skin_url,
-        "cape_urls": profile.cape_urls
-    });
-    Ok(result.to_string())
+    Ok(profile)
+}
+
+pub async fn restore_ms_session_impl(
+    app: &AppHandle,
+    profile_cache: &Mutex<Option<MinecraftProfile>>,
+) -> AppResult<String> {
+    let profile = restore_ms_session_profile_impl(app, profile_cache).await?;
+    Ok(serialize_auth_profile_v1(&profile, None))
+}
+
+pub async fn restore_ms_session_v2_impl(
+    app: &AppHandle,
+    profile_cache: &Mutex<Option<MinecraftProfile>>,
+) -> AppResult<AuthProfileV2> {
+    let profile = restore_ms_session_profile_impl(app, profile_cache).await?;
+    Ok(map_auth_profile_v2(&profile))
 }
 
 pub async fn logout_impl(
@@ -133,10 +163,10 @@ pub async fn logout_impl(
     Ok(())
 }
 
-pub async fn refresh_ms_profile_impl(
+async fn refresh_ms_profile_profile_impl(
     app: &AppHandle,
     profile_cache: &Mutex<Option<MinecraftProfile>>,
-) -> AppResult<String> {
+) -> AppResult<MinecraftProfile> {
     let mut session = load_session(app).await?;
     let now = now_unix();
     if session.mc_expires_at <= now + 30 {
@@ -161,15 +191,7 @@ pub async fn refresh_ms_profile_impl(
         stored_profile.user_type = Some("msa".to_string());
         *cache = Some(stored_profile);
 
-        let result = serde_json::json!({
-            "status": "success",
-            "id": profile.id,
-            "name": profile.name,
-            "is_offline": false,
-            "skin_url": profile.skin_url,
-            "cape_urls": profile.cape_urls
-        });
-        return Ok(result.to_string());
+        return Ok(profile);
     }
 
     let profile = fetch_mc_profile(&session.mc_access_token).await?;
@@ -189,13 +211,30 @@ pub async fn refresh_ms_profile_impl(
         *cache = Some(stored_profile);
     }
 
-    let result = serde_json::json!({
-        "status": "success",
-        "id": profile.id,
-        "name": profile.name,
-        "is_offline": false,
-        "skin_url": profile.skin_url,
-        "cape_urls": profile.cape_urls
-    });
-    Ok(result.to_string())
+    Ok(profile)
+}
+
+pub async fn refresh_ms_profile_impl(
+    app: &AppHandle,
+    profile_cache: &Mutex<Option<MinecraftProfile>>,
+) -> AppResult<String> {
+    let profile = refresh_ms_profile_profile_impl(app, profile_cache).await?;
+    Ok(serialize_auth_profile_v1(&profile, None))
+}
+
+pub async fn refresh_ms_profile_v2_impl(
+    app: &AppHandle,
+    profile_cache: &Mutex<Option<MinecraftProfile>>,
+) -> AppResult<AuthProfileV2> {
+    let profile = refresh_ms_profile_profile_impl(app, profile_cache).await?;
+    Ok(map_auth_profile_v2(&profile))
+}
+
+pub async fn poll_ms_login_v2_impl(
+    app: &AppHandle,
+    device_code: String,
+    profile_cache: &Mutex<Option<MinecraftProfile>>,
+) -> AppResult<AuthProfileV2> {
+    let profile = poll_ms_login_profile_impl(app, device_code, profile_cache).await?;
+    Ok(map_auth_profile_v2(&profile))
 }

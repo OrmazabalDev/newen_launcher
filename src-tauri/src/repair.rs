@@ -53,5 +53,5 @@ pub async fn repair_instance_impl(
     let _ = download_game_files_impl(app, base_version.clone(), metadata_cache).await?;
     let _ = download_libraries_for_version_impl(app, inst.version.clone()).await?;
 
-    Ok("Repair completado: assets, cliente y librerias verificados.".to_string())
+    Ok("Reparacion completada: assets, cliente y librerias verificados.".to_string())
 }

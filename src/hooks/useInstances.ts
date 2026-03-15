@@ -13,6 +13,13 @@ export interface InstancesApi {
     thumbnail?: string;
     tags?: string[];
   }) => Promise<InstanceSummary>;
+  createInstanceV2: (payload: {
+    name: string;
+    version: string;
+    loader: LoaderType;
+    thumbnail?: string;
+    tags?: string[];
+  }) => Promise<InstanceSummary>;
   deleteInstance: (instanceId: string) => Promise<void>;
   openInstanceFolder: (instanceId: string) => Promise<void>;
   launchGame: (versionId: string, settings: GameSettings, instanceId?: string) => Promise<void>;
@@ -70,6 +77,20 @@ export interface UseInstancesResult {
   repairSelectedInstance: () => Promise<void>;
   playSelectedInstance: () => Promise<void>;
   retryJavaDownload: () => Promise<void>;
+}
+
+function hasAutoRepairAppliedMessage(message: string): boolean {
+  return (
+    message.includes("Auto-repair aplicado") ||
+    message.includes("Reparacion automatica aplicada")
+  );
+}
+
+function hasAutoRepairFailedMessage(message: string): boolean {
+  return (
+    message.includes("Auto-repair fallo") ||
+    message.includes("La reparacion automatica fallo")
+  );
 }
 
 /**
@@ -134,12 +155,6 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
 
   const launchInstance = useCallback(
     async (instance: InstanceSummary) => {
-      const versionId = instance.version;
-      const isModded =
-        versionId.includes("forge") ||
-        versionId.includes("neoforge") ||
-        versionId.includes("fabric");
-
       setPendingInstanceId(instance.id);
       onProcessingChange(true);
       onProgressChange(0);
@@ -147,12 +162,8 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
       void setLauncherPresence("Lanzando Minecraft...");
 
       try {
-        if (!isModded) {
-          await api.getVersionMetadata(versionId);
-        }
-
-        onGlobalStatus(`Lanzando ${versionId}...`);
-        await api.launchGame(versionId, gameSettings, instance.id);
+        onGlobalStatus(`Lanzando ${instance.version}...`);
+        await api.launchGame(instance.version, gameSettings, instance.id);
         await onLaunchSuccess?.(instance);
         setErrorInstanceIds((prev) => {
           const next = new Set(prev);
@@ -168,10 +179,10 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
           next.add(instance.id);
           return next;
         });
-        if (message.includes("Auto-repair aplicado")) {
-          showToast("Auto-repair aplicado. Intenta lanzar otra vez.", "success");
-        } else if (message.includes("Auto-repair fallo")) {
-          showToast("Auto-repair fallo. Revisa Logs/Crash.", "error");
+        if (hasAutoRepairAppliedMessage(message)) {
+          showToast("Reparacion automatica aplicada. Intenta lanzar de nuevo.", "success");
+        } else if (hasAutoRepairFailedMessage(message)) {
+          showToast("La reparacion automatica fallo. Revisa logs y reportes de crash.", "error");
         }
         const lower = message.toLowerCase();
         if (lower.includes("java") || lower.includes("adoptium") || lower.includes("runtime")) {
@@ -245,24 +256,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
       onProgressChange(0);
       onGlobalStatus("Preparando instancia...");
       try {
-        let versionId = payload.version;
-        if (payload.loader === "forge") {
-          onGlobalStatus("Instalando Forge...");
-          versionId = await api.installForge(payload.version);
-        } else if (payload.loader === "neoforge") {
-          onGlobalStatus("Instalando NeoForge...");
-          versionId = await api.installNeoForge(payload.version);
-        } else if (payload.loader === "fabric") {
-          onGlobalStatus("Instalando Fabric...");
-          versionId = await api.installFabric(payload.version);
-        } else {
-          onGlobalStatus("Descargando archivos...");
-          await api.getVersionMetadata(versionId);
-          await api.downloadClient(versionId);
-          await api.downloadGameFiles(versionId);
-        }
-
-        const created = await api.createInstance({ ...payload, version: versionId });
+        const created = await api.createInstanceV2(payload);
         setInstances((prev) => [created, ...prev]);
         setSelectedInstanceId(created.id);
         onGlobalStatus("Instancia creada.");

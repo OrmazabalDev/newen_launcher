@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AuthMode, MinecraftProfile } from "../types";
+import type { AuthMode, AuthProfileV2, MinecraftProfile } from "../types";
 
 export interface AuthApi {
-  loginOffline: (username: string) => Promise<string>;
-  restoreMsSession: () => Promise<string>;
+  loginOfflineV2: (username: string) => Promise<AuthProfileV2>;
+  restoreMsSessionV2: () => Promise<AuthProfileV2>;
   logoutSession: () => Promise<void>;
-  refreshMsProfile: () => Promise<string>;
+  refreshMsProfileV2: () => Promise<AuthProfileV2>;
 }
 
 export interface UseAuthOptions {
@@ -48,6 +48,17 @@ export function useAuth(options: UseAuthOptions): UseAuthResult {
     [onPresence]
   );
 
+  const toMinecraftProfile = useCallback(
+    (profile: AuthProfileV2): MinecraftProfile => ({
+      id: profile.id,
+      name: profile.name,
+      is_offline: profile.is_offline,
+      skin_url: profile.skin_url,
+      cape_urls: profile.cape_urls,
+    }),
+    []
+  );
+
   useEffect(() => {
     if (!userProfile) return;
     safePresence("Gestionando instancias");
@@ -58,14 +69,12 @@ export function useAuth(options: UseAuthOptions): UseAuthResult {
     (async () => {
       try {
         if (persistedProfile.is_offline) {
-          const res = await api.loginOffline(persistedProfile.name);
-          const parsed = JSON.parse(res) as MinecraftProfile;
-          setUserProfile(parsed);
+          const profile = await api.loginOfflineV2(persistedProfile.name);
+          setUserProfile(toMinecraftProfile(profile));
           setAuthMode("offline");
         } else {
-          const res = await api.restoreMsSession();
-          const parsed = JSON.parse(res) as MinecraftProfile;
-          setUserProfile(parsed);
+          const profile = await api.restoreMsSessionV2();
+          setUserProfile(toMinecraftProfile(profile));
           setAuthMode("microsoft");
         }
       } catch (err) {
@@ -74,7 +83,7 @@ export function useAuth(options: UseAuthOptions): UseAuthResult {
         onAuthError("No se pudo restaurar sesion: " + String(err));
       }
     })();
-  }, [api, onAuthError, persistedProfile]);
+  }, [api, onAuthError, persistedProfile, toMinecraftProfile]);
 
   useEffect(() => {
     onPersist(userProfile);
@@ -84,14 +93,13 @@ export function useAuth(options: UseAuthOptions): UseAuthResult {
     if (!offlineUsername.trim()) return;
     try {
       setAuthError("");
-      const res = await api.loginOffline(offlineUsername.trim());
-      const parsed = JSON.parse(res) as MinecraftProfile;
-      setUserProfile(parsed);
+      const profile = await api.loginOfflineV2(offlineUsername.trim());
+      setUserProfile(toMinecraftProfile(profile));
       setAuthMode("offline");
     } catch (err) {
       setAuthError(String(err));
     }
-  }, [api, offlineUsername]);
+  }, [api, offlineUsername, toMinecraftProfile]);
 
   const loginMicrosoft = useCallback((profile: MinecraftProfile) => {
     setUserProfile(profile);
@@ -114,13 +122,12 @@ export function useAuth(options: UseAuthOptions): UseAuthResult {
   const refreshOnlineProfile = useCallback(async () => {
     if (!userProfile || userProfile.is_offline) return;
     try {
-      const res = await api.refreshMsProfile();
-      const parsed = JSON.parse(res) as MinecraftProfile;
-      setUserProfile(parsed);
+      const profile = await api.refreshMsProfileV2();
+      setUserProfile(toMinecraftProfile(profile));
     } catch (err) {
       console.error(err);
     }
-  }, [api, userProfile]);
+  }, [api, toMinecraftProfile, userProfile]);
 
   return {
     userProfile,

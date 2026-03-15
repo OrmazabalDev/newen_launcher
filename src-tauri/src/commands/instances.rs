@@ -1,9 +1,13 @@
 use super::map_app_result;
 use crate::instances::{
-    create_instance_impl, delete_instance_impl, list_instances_impl, open_instance_folder_impl,
-    update_instance_impl,
+    create_instance_impl, create_instance_v2_impl, delete_instance_impl, list_instances_impl,
+    open_instance_folder_impl, update_instance_impl,
 };
-use crate::models::{InstanceCreateRequest, InstanceSummary, InstanceUpdateRequest};
+use crate::models::{
+    InstanceCreateRequest, InstanceCreateV2Request, InstanceSummary, InstanceUpdateRequest,
+};
+use crate::state::AppState;
+use tauri::State;
 
 #[tauri::command]
 pub async fn list_instances(app: tauri::AppHandle) -> Result<Vec<InstanceSummary>, String> {
@@ -16,6 +20,15 @@ pub async fn create_instance(
     req: InstanceCreateRequest,
 ) -> Result<InstanceSummary, String> {
     map_app_result(create_instance_impl(&app, req).await)
+}
+
+#[tauri::command]
+pub async fn create_instance_v2(
+    app: tauri::AppHandle,
+    req: InstanceCreateV2Request,
+    state: State<'_, AppState>,
+) -> Result<InstanceSummary, String> {
+    map_app_result(create_instance_v2_impl(&app, req, &state.manifest_cache, &state.metadata_cache).await)
 }
 
 #[tauri::command]

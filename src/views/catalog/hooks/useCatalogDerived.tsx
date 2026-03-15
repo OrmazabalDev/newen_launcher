@@ -73,7 +73,7 @@ export function useCatalogDerived({
   importingDatapack,
   curseforgeNeedsKey,
 }: CatalogDerivedArgs) {
-  const headerTitle = title ?? "Catálogo de contenido";
+  const headerTitle = title ?? "Catalogo";
   const headerSubtitle =
     subtitle ??
     "Explora Modrinth por tipo, categoría y versión. Puedes instalar mods, modpacks, resource packs y shaders.";

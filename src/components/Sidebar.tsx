@@ -4,6 +4,11 @@ import { IconDownload, IconFolder, IconPlay, IconSearch, IconSettings, IconUser 
 import * as tauri from "../services/tauri";
 import { cn } from "../utils/cn";
 import { gameAlert, logoutButton, navButton, profileCard, sidebar } from "./sidebarStyles";
+import packageJson from "../../package.json";
+
+const DISPLAY_VERSION = packageJson.version.replace(/[-+].*$/, "");
+const LAUNCHER_VERSION = `v${DISPLAY_VERSION}`;
+const PROJECT_STATUS = "Early Access";
 
 export function Sidebar({
   currentView,
@@ -65,6 +70,14 @@ export function Sidebar({
             Newen <span className="text-brand-accent">Launcher</span>
           </span>
         </div>
+        <div className="mb-6 px-2">
+          <div className="inline-flex items-center rounded-full border border-brand-accent/30 bg-brand-accent/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-accent">
+            {LAUNCHER_VERSION}
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Alpha / {PROJECT_STATUS}. Build publica con diagnostico local y mejoras continuas.
+          </div>
+        </div>
         {isGameRunning && (
           <div className={gameAlert()}>
             Juego en ejecución. Algunas acciones pueden tardar en responder.
@@ -103,7 +116,7 @@ export function Sidebar({
             className={navButton({ active: currentView === "catalog" })}
             aria-current={currentView === "catalog" ? "page" : undefined}
           >
-            <IconSearch /> <span>Catálogo mods</span>
+            <IconSearch /> <span>Catalogo</span>
           </button>
 
           <button
@@ -152,7 +165,7 @@ export function Sidebar({
         <div className="flex-1 min-w-0">
           <div className="font-bold text-sm truncate">{userProfile.name}</div>
           <div className="text-xs text-gray-500">
-            {userProfile.is_offline ? "Offline" : "Microsoft"}
+            {userProfile.is_offline ? "Modo offline" : "Cuenta Microsoft"}
           </div>
         </div>
         <button
@@ -161,7 +174,7 @@ export function Sidebar({
           className={logoutButton()}
           aria-label="Cerrar sesión"
         >
-          Salir
+          Cerrar sesion
         </button>
       </div>
     </div>

@@ -19,6 +19,27 @@ pub struct MinecraftProfile {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AuthProfileV2 {
+    pub id: String,
+    pub name: String,
+    pub is_offline: bool,
+    pub skin_url: Option<String>,
+    pub cape_urls: Vec<String>,
+}
+
+impl From<&MinecraftProfile> for AuthProfileV2 {
+    fn from(profile: &MinecraftProfile) -> Self {
+        Self {
+            id: profile.id.clone(),
+            name: profile.name.clone(),
+            is_offline: profile.is_offline,
+            skin_url: profile.skin_url.clone(),
+            cape_urls: profile.cape_urls.clone(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceCodeResponse {
     pub user_code: String,
     pub device_code: String,

@@ -84,7 +84,7 @@ export function ManageInstanceSidebar({
             : "text-gray-400 hover:text-white hover:bg-white/5"
         }`}
       >
-        <span>Logs / Crash</span>
+        <span>Logs / Reportes de crash</span>
         <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded text-gray-300">
           {counts.logs}
         </span>
@@ -98,7 +98,7 @@ export function ManageInstanceSidebar({
         title={repairing ? "Reparando..." : "Reparar instancia"}
         className="w-full px-3 py-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-60"
       >
-        Reparar
+        Reparar instancia
       </button>
       {showContentActions && (
         <>

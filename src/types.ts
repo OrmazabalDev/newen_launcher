@@ -6,6 +6,14 @@ export interface MinecraftProfile {
   cape_urls: string[] | null;
 }
 
+export interface AuthProfileV2 {
+  id: string;
+  name: string;
+  is_offline: boolean;
+  skin_url: string | null;
+  cape_urls: string[];
+}
+
 export interface DeviceCodeResponse {
   user_code: string;
   device_code: string;

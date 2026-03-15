@@ -80,12 +80,11 @@ export function LoginView({
         isPollingRef.current = true;
         pollingRef.current = window.setInterval(async () => {
           try {
-            const result = await tauri.pollMsLogin(device.device_code);
-            const parsed = JSON.parse(result) as MinecraftProfile;
+            const profile = await tauri.pollMsLoginV2(device.device_code);
             stopPolling();
             setDeviceInfo(null);
             setMsStatus("");
-            onLoginMicrosoft(parsed);
+            onLoginMicrosoft(profile);
           } catch (err) {
             const message = String(err);
             if (message.includes("authorization_pending") || message.includes("slow_down")) {
@@ -119,7 +118,7 @@ export function LoginView({
             disabled={isPolling}
             className={cn(tabButton({ active: authMode === "microsoft" }), isPolling && "opacity-60 cursor-not-allowed")}
           >
-            {isPolling ? "Conectando..." : "Microsoft"}
+            {isPolling ? "Conectando..." : "Iniciar sesion con Microsoft"}
           </button>
           <button
             onClick={() => setAuthMode("offline")}
@@ -127,7 +126,7 @@ export function LoginView({
             disabled={isPolling}
             className={cn(tabButton({ active: authMode === "offline" }), isPolling && "opacity-60 cursor-not-allowed")}
           >
-            Offline
+            Modo offline
           </button>
         </div>
 
@@ -179,7 +178,7 @@ export function LoginView({
                 type="button"
                 className={cn(actionButton({ tone: "primary" }), "py-3.5")}
               >
-                Entrar
+                Iniciar sesion
               </button>
             </>
           )}

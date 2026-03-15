@@ -40,7 +40,7 @@ export function useLauncherPresence(api: DiscordPresenceApi): {
         const startTimestamp = Math.floor(Date.now() / 1000);
         await api.discordSetActivity(
           state,
-          "Launcher de Minecraft / Version 1.0 Atacama",
+          "Launcher de Minecraft / Version 1.2.0",
           startTimestamp,
           true
         );

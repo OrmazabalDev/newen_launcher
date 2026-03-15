@@ -23,7 +23,7 @@ export function ManageInstanceLogsPanel({
       <div className="bg-gray-950/40 border border-gray-800 rounded-xl p-3 overflow-y-auto custom-scrollbar">
         {logs.length === 0 && (
           <div className="text-gray-500 text-sm py-6 text-center">
-            No hay logs ni crash reports.
+            No hay logs ni reportes de crash.
           </div>
         )}
         <div className="space-y-2">
@@ -60,19 +60,19 @@ export function ManageInstanceLogsPanel({
               onClick={onCopyLog}
               className="px-2 py-1 rounded-lg bg-gray-800 text-gray-200 hover:bg-gray-700"
             >
-              Copiar
+              Copiar log
             </button>
             <button
               type="button"
               onClick={onGenerateReport}
               className="px-2 py-1 rounded-lg bg-gray-800 text-gray-200 hover:bg-gray-700"
             >
-              Generar reporte
+              Generar reporte de diagnostico
             </button>
           </div>
         </div>
         <div className="text-[11px] text-gray-500 mb-2">
-          El reporte incluye logs, instances.json y diagnostic.json (SO, versión y ruta del
+          El reporte de diagnostico incluye logs, instances.json y diagnostic.json (SO, version y ruta del
           launcher).
         </div>
         <pre className="flex-1 overflow-auto text-xs text-gray-200 whitespace-pre-wrap break-all select-text">

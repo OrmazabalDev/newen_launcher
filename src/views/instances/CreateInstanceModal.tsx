@@ -100,7 +100,7 @@ export function CreateInstanceModal({
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-                Versi?n
+                Versión
               </label>
               <div className="relative">
                 <select

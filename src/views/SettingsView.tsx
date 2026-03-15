@@ -72,11 +72,11 @@ export function SettingsView({
   };
 
   const handleGenerateReport = async () => {
-    setReportStatus("Generando reporte...");
+    setReportStatus("Generando reporte de diagnostico...");
     setIsGeneratingReport(true);
     try {
       const path = await tauri.generateDiagnosticReport();
-      setReportStatus(`Reporte generado: ${path}`);
+      setReportStatus(`Reporte de diagnostico generado: ${path}`);
     } catch (e) {
       setReportStatus("Error generando reporte: " + String(e));
     } finally {

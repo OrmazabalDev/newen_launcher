@@ -2,9 +2,9 @@ import { defaultSchema } from "rehype-sanitize";
 
 export const PROJECT_TYPES = [
   { id: "mod", label: "Mods" },
-  { id: "resourcepack", label: "Resource Packs" },
-  { id: "datapack", label: "Data Packs" },
-  { id: "shader", label: "Shaders" },
+  { id: "resourcepack", label: "Packs de recursos" },
+  { id: "datapack", label: "Datapacks" },
+  { id: "shader", label: "Packs de shaders" },
   { id: "modpack", label: "Modpacks" },
 ] as const;
 

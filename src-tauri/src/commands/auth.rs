@@ -1,15 +1,24 @@
 use super::map_app_result;
 use crate::auth::{
-    login_offline_impl, logout_impl, poll_ms_login_impl, refresh_ms_profile_impl,
-    restore_ms_session_impl, start_ms_login_impl,
+    login_offline_impl, login_offline_v2_impl, logout_impl, poll_ms_login_impl,
+    poll_ms_login_v2_impl, refresh_ms_profile_impl, refresh_ms_profile_v2_impl,
+    restore_ms_session_impl, restore_ms_session_v2_impl, start_ms_login_impl,
 };
-use crate::models::DeviceCodeResponse;
+use crate::models::{AuthProfileV2, DeviceCodeResponse};
 use crate::state::AppState;
 use tauri::State;
 
 #[tauri::command]
 pub async fn login_offline(username: String, state: State<'_, AppState>) -> Result<String, String> {
     map_app_result(login_offline_impl(username, &state.current_profile).await)
+}
+
+#[tauri::command]
+pub async fn login_offline_v2(
+    username: String,
+    state: State<'_, AppState>,
+) -> Result<AuthProfileV2, String> {
+    map_app_result(login_offline_v2_impl(username, &state.current_profile).await)
 }
 
 #[tauri::command]
@@ -27,11 +36,28 @@ pub async fn poll_ms_login(
 }
 
 #[tauri::command]
+pub async fn poll_ms_login_v2(
+    app: tauri::AppHandle,
+    device_code: String,
+    state: State<'_, AppState>,
+) -> Result<AuthProfileV2, String> {
+    map_app_result(poll_ms_login_v2_impl(&app, device_code, &state.current_profile).await)
+}
+
+#[tauri::command]
 pub async fn restore_ms_session(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     map_app_result(restore_ms_session_impl(&app, &state.current_profile).await)
+}
+
+#[tauri::command]
+pub async fn restore_ms_session_v2(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<AuthProfileV2, String> {
+    map_app_result(restore_ms_session_v2_impl(&app, &state.current_profile).await)
 }
 
 #[tauri::command]
@@ -48,4 +74,12 @@ pub async fn refresh_ms_profile(
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     map_app_result(refresh_ms_profile_impl(&app, &state.current_profile).await)
+}
+
+#[tauri::command]
+pub async fn refresh_ms_profile_v2(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<AuthProfileV2, String> {
+    map_app_result(refresh_ms_profile_v2_impl(&app, &state.current_profile).await)
 }

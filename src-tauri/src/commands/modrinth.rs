@@ -91,11 +91,11 @@ pub async fn modrinth_install_version(
             )
             .await;
             let repair_msg = match repair {
-                Ok(msg) => format!("Auto-repair aplicado: {}", msg),
-                Err(e) => format!("Auto-repair fallo: {}", e),
+                Ok(msg) => format!("Reparacion automatica aplicada: {}", msg),
+                Err(e) => format!("La reparacion automatica fallo: {}", e),
             };
             Err(format!(
-                "Error instalando contenido: {}. {}. Como solucionarlo: verifica loader/version y conexion; si falla, usa Repair.",
+                "Error instalando contenido: {}. {}. Como solucionarlo: verifica loader, version y conexion; si falla, usa Reparar instancia.",
                 err, repair_msg
             ))
         }
