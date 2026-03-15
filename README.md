@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/platform-Windows-2563eb?style=for-the-badge" alt="Plataforma Windows" />
   <img src="https://img.shields.io/badge/stack-Rust%20%2B%20React%20%2B%20Tauri-111827?style=for-the-badge" alt="Stack Rust React Tauri" />
   <img src="https://img.shields.io/badge/license-MIT-16a34a?style=for-the-badge" alt="Licencia MIT" />
-  <img src="https://img.shields.io/badge/version-1.1.0-eab308?style=for-the-badge" alt="Version 1.2.0" />
+  <img src="https://img.shields.io/badge/version-1.2.0-eab308?style=for-the-badge" alt="Version 1.2.0" />
   <img src="https://img.shields.io/badge/language-Espa%C3%B1ol-d946ef?style=for-the-badge" alt="Idioma Espanol" />
 </p>
 
