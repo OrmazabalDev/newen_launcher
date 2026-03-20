@@ -157,6 +157,7 @@ pub fn run() {
             // Sistema
             detect_system_java,
             launch_game,
+            launch_game_v2,
             // Discord
             discord_init,
             discord_set_activity,

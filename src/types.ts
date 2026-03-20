@@ -30,6 +30,20 @@ export interface SystemJava {
   message: string;
 }
 
+export type LaunchRecoveryStatus =
+  | "auto_repair_applied"
+  | "auto_repair_failed";
+
+export interface LaunchRecoveryResult {
+  success: boolean;
+  recovery_status: LaunchRecoveryStatus | null;
+  diagnostic_path: string | null;
+  log_path: string | null;
+  user_message: string;
+  technical_message: string | null;
+  requires_java_attention: boolean;
+}
+
 export interface ProgressPayload {
   task: string;
   percent: number;

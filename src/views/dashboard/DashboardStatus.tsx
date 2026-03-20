@@ -1,10 +1,17 @@
+import type { LaunchRecoveryResult } from "../../types";
 import { cn } from "../../utils/cn";
 import { statusActionButton, statusBox } from "./styles";
 
-function buildRecoveryGuide(statusText: string, reportPath: string, prelaunchPath: string) {
+function buildRecoveryGuide(
+  statusText: string,
+  reportPath: string,
+  prelaunchPath: string,
+  launchRecovery: LaunchRecoveryResult | null
+) {
+  const recoveryStatus = launchRecovery?.recovery_status;
   const lower = statusText.toLowerCase();
 
-  if (lower.includes("reparacion automatica aplicada")) {
+  if (recoveryStatus === "auto_repair_applied" || lower.includes("reparacion automatica aplicada")) {
     return {
       title: "Detectamos un problema e intentamos repararlo automaticamente.",
       nextStep:
@@ -12,7 +19,7 @@ function buildRecoveryGuide(statusText: string, reportPath: string, prelaunchPat
     };
   }
 
-  if (lower.includes("reparacion automatica fallo")) {
+  if (recoveryStatus === "auto_repair_failed" || lower.includes("reparacion automatica fallo")) {
     return {
       title: "No pudimos reparar esta instancia automaticamente.",
       nextStep:
@@ -40,6 +47,7 @@ export function DashboardStatus({
   isError,
   isSuccess,
   hasInstance,
+  launchRecovery,
   onRepairInstance,
   reportPath,
   prelaunchPath,
@@ -52,6 +60,7 @@ export function DashboardStatus({
   isError: boolean;
   isSuccess: boolean;
   hasInstance: boolean;
+  launchRecovery: LaunchRecoveryResult | null;
   onRepairInstance: () => void;
   reportPath: string;
   prelaunchPath: string;
@@ -62,7 +71,7 @@ export function DashboardStatus({
   if (!statusText) return null;
 
   const recoveryGuide = isError && hasInstance
-    ? buildRecoveryGuide(statusText, reportPath, prelaunchPath)
+    ? buildRecoveryGuide(statusText, reportPath, prelaunchPath, launchRecovery)
     : null;
 
   if (isProcessing) {

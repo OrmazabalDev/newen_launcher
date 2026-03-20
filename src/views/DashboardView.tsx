@@ -1,5 +1,11 @@
 ﻿import { useEffect, useState } from "react";
-import type { GameSettings, InstanceSummary, RuntimeMetrics, SystemJava } from "../types";
+import type {
+  GameSettings,
+  InstanceSummary,
+  LaunchRecoveryResult,
+  RuntimeMetrics,
+  SystemJava,
+} from "../types";
 import * as tauri from "../services/tauri";
 import { DashboardBackground } from "./dashboard/DashboardBackground";
 import { DashboardHeader } from "./dashboard/DashboardHeader";
@@ -18,6 +24,7 @@ export function DashboardView({
   onPlay,
   onGoInstances,
   onRepairInstance,
+  lastLaunchRecovery,
   systemJava,
   settings: _settings,
   gamePid,
@@ -31,6 +38,7 @@ export function DashboardView({
   onPlay: () => void;
   onGoInstances: () => void;
   onRepairInstance: () => void;
+  lastLaunchRecovery: LaunchRecoveryResult | null;
   systemJava: SystemJava | null;
   settings: GameSettings;
   gamePid: number | null;
@@ -42,10 +50,17 @@ export function DashboardView({
   const statusLower = statusText.toLowerCase();
   const isError = statusLower.startsWith("error");
   const isSuccess = statusLower.startsWith("listo");
-  const reportPathMatch = statusText.match(/Reporte diagnostico:\s*([^|]+)/i);
-  const reportPath = reportPathMatch?.[1]?.trim() ?? "";
-  const prelaunchMatch = statusText.match(/Log prelaunch:\s*([^|]+)/i);
-  const prelaunchPath = prelaunchMatch?.[1]?.trim() ?? "";
+  const isLaunchFailureStatus = statusLower.startsWith("error: lanzamiento fallido");
+  const reportPathMatch = statusText.match(/Reporte de diagnostico:\s*([^\n]+)/i);
+  const reportPath =
+    (isLaunchFailureStatus ? lastLaunchRecovery?.diagnostic_path : null) ??
+    reportPathMatch?.[1]?.trim() ??
+    "";
+  const prelaunchMatch = statusText.match(/Log previo al lanzamiento:\s*([^\n]+)/i);
+  const prelaunchPath =
+    (isLaunchFailureStatus ? lastLaunchRecovery?.log_path : null) ??
+    prelaunchMatch?.[1]?.trim() ??
+    "";
   const [uploadStatus, setUploadStatus] = useState("");
   const [isUploadingReport, setIsUploadingReport] = useState(false);
   const [metrics, setMetrics] = useState<RuntimeMetrics | null>(null);
@@ -188,6 +203,7 @@ export function DashboardView({
           isError={isError}
           isSuccess={isSuccess}
           hasInstance={hasInstance}
+          launchRecovery={isLaunchFailureStatus ? lastLaunchRecovery : null}
           onRepairInstance={onRepairInstance}
           reportPath={reportPath}
           prelaunchPath={prelaunchPath}

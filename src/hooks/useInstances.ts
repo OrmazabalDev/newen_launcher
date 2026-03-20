@@ -1,5 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import type { GameSettings, InstanceSummary, LoaderType } from "../types";
+import type {
+  GameSettings,
+  InstanceSummary,
+  LaunchRecoveryResult,
+  LoaderType,
+} from "../types";
 import type { ConfirmOptions } from "./useConfirm";
 import type { ToastKind } from "./useToast";
 import { extractBaseVersion } from "../utils/versioning";
@@ -23,6 +28,11 @@ export interface InstancesApi {
   deleteInstance: (instanceId: string) => Promise<void>;
   openInstanceFolder: (instanceId: string) => Promise<void>;
   launchGame: (versionId: string, settings: GameSettings, instanceId?: string) => Promise<void>;
+  launchGameV2: (
+    versionId: string,
+    settings: GameSettings,
+    instanceId?: string
+  ) => Promise<LaunchRecoveryResult>;
   getVersionMetadata: (versionId: string) => Promise<void>;
   downloadClient: (versionId: string) => Promise<void>;
   downloadGameFiles: (versionId: string) => Promise<void>;
@@ -77,20 +87,7 @@ export interface UseInstancesResult {
   repairSelectedInstance: () => Promise<void>;
   playSelectedInstance: () => Promise<void>;
   retryJavaDownload: () => Promise<void>;
-}
-
-function hasAutoRepairAppliedMessage(message: string): boolean {
-  return (
-    message.includes("Auto-repair aplicado") ||
-    message.includes("Reparacion automatica aplicada")
-  );
-}
-
-function hasAutoRepairFailedMessage(message: string): boolean {
-  return (
-    message.includes("Auto-repair fallo") ||
-    message.includes("La reparacion automatica fallo")
-  );
+  lastLaunchRecovery: LaunchRecoveryResult | null;
 }
 
 /**
@@ -118,6 +115,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
   const [pendingInstanceId, setPendingInstanceId] = useState<string>("");
   const [errorInstanceIds, setErrorInstanceIds] = useState<Set<string>>(new Set());
   const [showJavaPrompt, setShowJavaPrompt] = useState(false);
+  const [lastLaunchRecovery, setLastLaunchRecovery] = useState<LaunchRecoveryResult | null>(null);
 
   const selectedInstance = useMemo(
     () => instances.find((instance) => instance.id === selectedInstanceId) || null,
@@ -127,6 +125,28 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
   const closeJavaPrompt = useCallback(() => {
     setShowJavaPrompt(false);
   }, []);
+
+  const handleLaunchFailure = useCallback(
+    (instanceId: string, result: LaunchRecoveryResult) => {
+      setLastLaunchRecovery(result);
+      onGlobalStatus("Error: lanzamiento fallido. " + result.user_message);
+      void setLauncherPresence("Gestionando instancias");
+      setErrorInstanceIds((prev) => {
+        const next = new Set(prev);
+        next.add(instanceId);
+        return next;
+      });
+      if (result.recovery_status === "auto_repair_applied") {
+        showToast("Reparacion automatica aplicada. Intenta lanzar de nuevo.", "success");
+      } else if (result.recovery_status === "auto_repair_failed") {
+        showToast("La reparacion automatica fallo. Revisa logs y reportes de crash.", "error");
+      }
+      if (result.requires_java_attention) {
+        setShowJavaPrompt(true);
+      }
+    },
+    [onGlobalStatus, setLauncherPresence, showToast]
+  );
 
   const refreshInstances = useCallback(async (): Promise<InstanceSummary[]> => {
     setInstancesLoading(true);
@@ -162,9 +182,15 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
       void setLauncherPresence("Lanzando Minecraft...");
 
       try {
+        setLastLaunchRecovery(null);
         onGlobalStatus(`Lanzando ${instance.version}...`);
-        await api.launchGame(instance.version, gameSettings, instance.id);
+        const result = await api.launchGameV2(instance.version, gameSettings, instance.id);
+        if (!result.success) {
+          handleLaunchFailure(instance.id, result);
+          return;
+        }
         await onLaunchSuccess?.(instance);
+        setLastLaunchRecovery(result);
         setErrorInstanceIds((prev) => {
           const next = new Set(prev);
           next.delete(instance.id);
@@ -179,11 +205,6 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
           next.add(instance.id);
           return next;
         });
-        if (hasAutoRepairAppliedMessage(message)) {
-          showToast("Reparacion automatica aplicada. Intenta lanzar de nuevo.", "success");
-        } else if (hasAutoRepairFailedMessage(message)) {
-          showToast("La reparacion automatica fallo. Revisa logs y reportes de crash.", "error");
-        }
         const lower = message.toLowerCase();
         if (lower.includes("java") || lower.includes("adoptium") || lower.includes("runtime")) {
           setShowJavaPrompt(true);
@@ -195,6 +216,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
     [
       api,
       gameSettings,
+      handleLaunchFailure,
       onGlobalStatus,
       onProcessingChange,
       onProgressChange,
@@ -325,11 +347,17 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
     setShowJavaPrompt(false);
     onProcessingChange(true);
     try {
+      setLastLaunchRecovery(null);
       const target = instances.find((item) => item.id === pendingInstanceId) || selectedInstance;
       const baseVersion = target ? extractBaseVersion(target.version) : undefined;
       await api.downloadJava(baseVersion);
       if (target) {
-        await api.launchGame(target.version, gameSettings, target.id);
+        const result = await api.launchGameV2(target.version, gameSettings, target.id);
+        if (!result.success) {
+          handleLaunchFailure(target.id, result);
+        } else {
+          setLastLaunchRecovery(result);
+        }
       }
     } catch (err) {
       onGlobalStatus("Error: Java. " + String(err));
@@ -339,6 +367,7 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
   }, [
     api,
     gameSettings,
+    handleLaunchFailure,
     instances,
     onGlobalStatus,
     onProcessingChange,
@@ -363,5 +392,6 @@ export function useInstances(options: UseInstancesOptions): UseInstancesResult {
     repairSelectedInstance,
     playSelectedInstance,
     retryJavaDownload,
+    lastLaunchRecovery,
   };
 }

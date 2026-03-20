@@ -1,4 +1,4 @@
-import type { GameSettings, SystemJava } from "../../types";
+import type { GameSettings, LaunchRecoveryResult, SystemJava } from "../../types";
 import { invokeTyped } from "./core";
 
 export function detectSystemJava(): Promise<SystemJava> {
@@ -35,6 +35,14 @@ export function launchGame(
   instanceId?: string
 ): Promise<void> {
   return invokeTyped("launch_game", { versionId, settings, instanceId });
+}
+
+export function launchGameV2(
+  versionId: string,
+  settings: GameSettings,
+  instanceId?: string
+): Promise<LaunchRecoveryResult> {
+  return invokeTyped("launch_game_v2", { versionId, settings, instanceId });
 }
 
 export function deleteVersion(versionId: string): Promise<void> {

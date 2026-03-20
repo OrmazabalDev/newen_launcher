@@ -63,6 +63,7 @@ function useAppState() {
     repairSelectedInstance,
     playSelectedInstance,
     retryJavaDownload,
+    lastLaunchRecovery,
   } = useInstances({
     api: tauri,
     gameSettings,
@@ -370,6 +371,7 @@ function useAppState() {
     repairSelectedInstance,
     playSelectedInstance,
     retryJavaDownload,
+    lastLaunchRecovery,
     userProfile,
     authMode,
     offlineUsername,

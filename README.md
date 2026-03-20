@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/platform-Windows-2563eb?style=for-the-badge" alt="Plataforma Windows" />
   <img src="https://img.shields.io/badge/stack-Rust%20%2B%20React%20%2B%20Tauri-111827?style=for-the-badge" alt="Stack Rust React Tauri" />
   <img src="https://img.shields.io/badge/license-MIT-16a34a?style=for-the-badge" alt="Licencia MIT" />
-  <img src="https://img.shields.io/badge/version-1.1.0-eab308?style=for-the-badge" alt="Version 1.1.0" />
+  <img src="https://img.shields.io/badge/version-1.2.0-eab308?style=for-the-badge" alt="Version 1.2.0" />
   <img src="https://img.shields.io/badge/language-Espa%C3%B1ol-d946ef?style=for-the-badge" alt="Idioma Espanol" />
 </p>
 
@@ -31,6 +31,17 @@
 </p>
 
 Early Access: estamos mejorando rapido, puliendo la experiencia y ajustando el producto para que el launcher sea mas claro, confiable y simple de usar.
+
+## Release actual
+
+**Newen Launcher v1.2.0** refuerza claridad, confianza visible y base tecnica.
+
+- Auth V2 base ya esta integrada en frontend y backend.
+- La persistencia de instancias es mas segura y consistente.
+- La creacion manual ya usa backend V2.
+- Modpacks reutilizan la misma base comun de preparacion.
+- Launch y recovery quedaron mas centralizados y con contrato mas estable.
+- El launcher muestra mejor su version, estado del proyecto y diagnostico local.
 
 ## Por que Newen
 
@@ -58,7 +69,7 @@ Los launchers mas conocidos ya cubren instancias, loaders y modpacks. Newen no i
 Newen Launcher ya es utilizable y tiene una base funcional real, pero sigue en etapa temprana.
 
 - Estado actual: **Early Access**
-- Version del repo: **1.1.0**
+- Version del repo: **1.2.0**
 - Plataforma principal: **Windows**
 - Idioma principal: **Espanol**
 
@@ -73,8 +84,8 @@ Hoy estamos enfocados en:
 
 Puedes descargar la version mas reciente desde [Releases](https://github.com/OrmazabalDev/newen_launcher/releases).
 
-- Archivo recomendado: `Newen Launcher_1.1.x_x64-setup.exe`
-- Alternativa: `Newen Launcher_1.1.x_x64_en-US.msi`
+- Archivo recomendado: `Newen Launcher_1.2.0_x64-setup.exe`
+- Alternativa: `Newen Launcher.msi`
 - Plataforma: Windows
 - Estado: Early Access
 
@@ -124,8 +135,8 @@ El repo ya incluye identidad visual del proyecto, pero todavia faltan capturas v
 
 - [ ] Pulido de onboarding
 - [ ] Mejora de estabilidad general
-- [ ] Mejoras de instalacion y reparacion
-- [ ] Mensajes de error mas claros
+- [ ] Diagnostico mas guiado como feature visible
+- [ ] Mejor experiencia de primer uso
 - [ ] Mas superficie de transparencia en el producto
 
 ### Proximamente

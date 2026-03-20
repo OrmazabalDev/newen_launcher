@@ -17,6 +17,7 @@ export function AppRoutes({ app }: { app: AppStateValue }) {
     globalStatus,
     playSelectedInstance,
     repairSelectedInstance,
+    lastLaunchRecovery,
     systemJava,
     gameSettings,
     gamePid,
@@ -58,6 +59,7 @@ export function AppRoutes({ app }: { app: AppStateValue }) {
           onPlay={playSelectedInstance}
           onGoInstances={() => navigate("instances")}
           onRepairInstance={repairSelectedInstance}
+          lastLaunchRecovery={lastLaunchRecovery}
           systemJava={systemJava}
           settings={gameSettings}
           gamePid={gamePid}
